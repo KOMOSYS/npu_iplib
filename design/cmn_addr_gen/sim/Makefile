@@ -8,9 +8,9 @@ MODULE = test_$(MODULE_NAME)
 
 FILE_LIST = $(realpath ../rtl/file_list.f)
 COMPILE_ARGS += -l ./vcs.comp.log -F $(FILE_LIST)
-COMPILE_ARGS += -kdb #+vcs+fsdbon+all
+COMPILE_ARGS += -kdb +vcs+fsdbon+all
 SIM_ARGS = -l vcs.run.log
-EXTRA_ARGS = -cm line+cond+fsm+tgl+branch
+EXTRA_ARGS = -cm line+cond+fsm+branch
 
 VERI_LIB_PATH = $(realpath ../../../lib)
 VERI_SRC_PATH = $(realpath $(PWD))

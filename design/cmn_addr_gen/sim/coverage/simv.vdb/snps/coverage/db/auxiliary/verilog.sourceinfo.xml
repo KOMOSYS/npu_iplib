@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE cov SYSTEM "ucdb_srcinfo.dtd">
+  <srcinfo name="/home/kjs/npu_iplib/design/cmn_addr_gen/sim/sim_build"  >
+    <ucapi_version  major_ver="13"  minor_ver="1"  patch_str="R-2020.12-SP1"  />
+      <fileinfo name="/home/kjs/npu_iplib/design/cmn_addr_gen/rtl/cmn_addr_gen.sv"  id="0"  timestamp="1702976195"  />
+    </srcinfo>
