@@ -1,0 +1,12 @@
+{signal: [
+  {name: 'clk',        wave: 'p....|..........'},
+  {name: 'reset_n',    wave: '01...|..........'},
+  {name: 'init_pulse', wave: '0..1.|..........'},
+  {name: 'base',       wave: 'x..2x|..........', data: '0x1'},
+  {name: 'size',       wave: 'x..2x|..........', data: '0xf'},
+  {name: 'stride',     wave: 'x..2x|..........', data: '0x2'},
+  {name: 'addr_req',   wave: '0....|1.01....0.', data: ''},
+  {name: 'addr',       wave: 'x....|.22x22222x', data: '0x1 0x3 0x5 0x7 0x9 0xb 0xd'},
+  {name: 'addr_vld',   wave: '0....|.1.01....0', data: ''},
+]
+}

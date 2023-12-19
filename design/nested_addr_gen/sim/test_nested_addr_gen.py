@@ -15,7 +15,6 @@ from cocotb.types import LogicArray
 from cocotb.handle import SimHandleBase
 from cocotb.triggers import Timer, RisingEdge, FallingEdge, ClockCycles, Combine
 
-sys.path.append(str(Path(__file__).parent.parent.parent))
 from base import *
 
 class RandomConfig(BaseConfig):
@@ -23,26 +22,25 @@ class RandomConfig(BaseConfig):
         self.depth = 5
 
     def randomize(self):
-        self.addr_base   = 0
+        self.base = 0
 
-        self.addr_size = []
-        self.addr_stride = []
+        self.size = []
+        self.stride = []
         for i in range(self.depth):
-            self.addr_size.append(10)
-            self.addr_stride.append(1)
-
+            self.size.append(10)
+            self.stride.append(1)
 
         self._ref_addr_list =[]
-        for i in range(self.addr_size[4]):
-            for j in range(self.addr_size[3]):
-                for k in range(self.addr_size[2]):
-                    for l in range(self.addr_size[1]):
-                        for m in range(self.addr_size[0]):
-                            ref_addr = m*self.addr_stride[0] + l*self.addr_stride[1] + k*self.addr_stride[2] + j*self.addr_stride[3] + i*self.addr_stride[4] + self.addr_base
+        for i in range(self.size[4]):
+            for j in range(self.size[3]):
+                for k in range(self.size[2]):
+                    for l in range(self.size[1]):
+                        for m in range(self.size[0]):
+                            ref_addr = m*self.stride[0] + l*self.stride[1] + k*self.stride[2] + j*self.stride[3] + i*self.stride[4] + self.base
                             self._ref_addr_list.append(ref_addr)
 
 
-class CmnAddrGenTester(BaseTester):
+class NestedAddrGenTester(BaseTester):
     def __init__(self, dut, cfg):
         self._dut = dut
         self._cfg = cfg
@@ -52,11 +50,11 @@ class CmnAddrGenTester(BaseTester):
         self._dut.clk.value = 0
         self._dut.reset_n.value = 0
         self._dut.init_pulse.value = 0
-        self._dut.addr_base.value = 0
+        self._dut.base.value = 0
         for i in range(self._cfg.depth):
-            self._dut.addr_size[i].value = 0
-            self._dut.addr_stride[i].value = 0
-        self._dut.addr_req = 0
+            self._dut.size[i].value = 0
+            self._dut.stride[i].value = 0
+        self._dut.addr_req.value = 0
 
     async def reset_phase(self):
         self._dut.reset_n.value = 0
@@ -77,10 +75,10 @@ class CmnAddrGenTester(BaseTester):
         await ClockCycles(self._dut.clk, 10)
     
     def _set_register(self) -> None:
-        self._dut.addr_base.value   = self._cfg.addr_base
+        self._dut.base.value   = self._cfg.base
         for i in range(self._cfg.depth):
-            self._dut.addr_size[i].value   = self._cfg.addr_size[i]
-            self._dut.addr_stride[i].value = self._cfg.addr_stride[i]
+            self._dut.size[i].value   = self._cfg.size[i]
+            self._dut.stride[i].value = self._cfg.stride[i]
 
     async def _driver(self) -> None:
         self._set_register()
@@ -99,7 +97,8 @@ class CmnAddrGenTester(BaseTester):
         for i in range(len(self._cfg._ref_addr_list)):
             while True:
                 await RisingEdge(self._dut.clk)
-                if self._dut.addr_valid.value: break
+                if self._dut.addr_vld.value:
+                    break
             addr = self._dut.addr.value.binstr
             self._monit_port.put_nowait(addr)
 
@@ -124,7 +123,7 @@ max_iter = int(os.getenv("MAX_ITER")) if os.getenv("MAX_ITER") is not None else 
 async def normal(dut):
     clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
     cfg = RandomConfig()
-    tester = CmnAddrGenTester(dut, cfg)
+    tester = NestedAddrGenTester(dut, cfg)
 
     tester.init_phase()
     await tester.reset_phase()
