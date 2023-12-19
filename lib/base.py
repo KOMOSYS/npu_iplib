@@ -1,6 +1,9 @@
 import abc
 import json
 import signal
+import abc
+import json
+import signal
 import random
 import cocotb
 import logging
@@ -29,16 +32,13 @@ class BaseConfig:
         Path(path).write_text(config)
 
     def __getattr__(self, name):
-        if name == "_freeze_list":
-            if name not in self.__dict__:
-                self.__dict__[name] = []
-            return self.__dict__[name]
-        else:
-            return self.__dict__[name] if name in self.__dict__ else None
+        if name == "_freeze_list" and name not in self.__dict__:
+            self.__dict__[name] = []
+        return self.__dict__[name]
 
     def __setattr__(self, name, value):
         if name not in self._freeze_list:
-            self.__dict__[name] = value        
+            self.__dict__[name] = value
 
     def __str__(self):
         cfg_dict = {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
@@ -50,6 +50,8 @@ class BaseConfig:
 class BaseTester(abc.ABC):
     _instance = None
     _coroutines = []
+    _file_handlder = logging.FileHandler("vcs.run.log")
+    cocotb.log.addHandler(_file_handlder)
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:

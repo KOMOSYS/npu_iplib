@@ -1,20 +1,20 @@
 /*
 Function of DEPTH 2 cmn_addr_gen:
-for(int j=0; j<(addr_size[1]+1); j++) {
-	for(int i=0; i<(addr_size[0]+1); i++) {
+for(int j=0; j<addr_size[1]; j++) {
+	for(int i=0; i<addr_size[0]; i++) {
 		addr = addr_base = i*addr_stride[0] + j*addr_stride[1];
 	}
 }
 */
 
-module cmn_addr_gen #(parameter DEPTH=5, AW=16) (
+module cmn_addr_gen #(parameter DEPTH=5, AW=8) (
 	input               clk,
 	input               reset_n,
 	input               init_pulse,
 	input               addr_req,
-	input  [AW-1:0]     addr_base,
-	input  [AW-1:0]     addr_size[DEPTH],
-	input  [AW-1:0]     addr_stride[DEPTH],
+	input      [AW-1:0] addr_base,
+	input      [AW-1:0] addr_size[DEPTH],
+	input      [AW-1:0] addr_stride[DEPTH],
 	output reg [AW-1:0] addr,
 	output reg          addr_valid
 );
@@ -31,7 +31,7 @@ reg  [AW-1:0] cur_addr;
 for(genvar i=0; i<DEPTH; i++) begin
 	always_ff @(posedge clk or negedge reset_n) begin
 		if(!reset_n)        cnt_max[i] <= 0;
-		else if(init_pulse) cnt_max[i] <= addr_size[i];
+		else if(init_pulse) cnt_max[i] <= addr_size[i] - 1;
 	end
 end
 for(genvar i=0; i<DEPTH; i++) begin
@@ -42,8 +42,9 @@ for(genvar i=0; i<DEPTH; i++) begin
 end
 
 /** Increase or clear address counter */
-for(genvar i=0; i<DEPTH; i++) begin
-	assign clr_cnt[i] = ctrl_cnt[i] == cnt_max[i];
+assign clr_cnt[0] = ctrl_cnt[0] == cnt_max[0];
+for(genvar i=1; i<DEPTH; i++) begin
+	assign clr_cnt[i] = (ctrl_cnt[i] == cnt_max[i]) & clr_cnt[i-1];
 end
 assign inc_cnt[0] = addr_req;
 for(genvar i=1; i<DEPTH; i++) begin
