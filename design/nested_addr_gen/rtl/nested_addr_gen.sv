@@ -23,6 +23,7 @@ reg  [AW-1:0] cur_addr;
 for(genvar i=0; i<DEPTH; i++) begin
 	assign cnt_enable[i] = size[i] != 0;
 end
+
 /** Set address counter stride and max */
 for(genvar i=0; i<DEPTH; i++) begin
 	always_ff @(posedge clk or negedge reset_n) begin
@@ -44,7 +45,7 @@ end
 /** Increase or clear address counter */
 for(genvar i=0; i<DEPTH; i++) begin
 	if(i == 0) assign clr_cnt[0] = cnt_enable[0] & (ctrl_cnt[0] == (cnt_max[0] - 1)) & addr_req;
-	else       assign clr_cnt[i] = cnt_enable[i] & (ctrl_cnt[i] == (cnt_max[i] - 1)) & clr_cnt[i-1] & addr_req;
+	else       assign clr_cnt[i] = cnt_enable[i] & (ctrl_cnt[i] == (cnt_max[i] - 1)) & clr_cnt[i-1];
 end
 for(genvar i=0; i<DEPTH; i++) begin
 	if(i == 0) assign inc_cnt[0] = cnt_enable[0] & addr_req;

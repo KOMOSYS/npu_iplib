@@ -12,7 +12,7 @@ module transpose #(parameter AW=16, BUFFD=64, DIMD=6)(
     input [AW-1:0] waddr_size[DIMD],
 	input [AW-1:0] waddr_stride[DIMD],
 
-    input [AW-1:0] trp_iter_num,
+    input [AW-1:0] areq_num,
 
     input [AW-1:0] packed_dim_rsize,
     input [AW-1:0] packed_dim_rstride,
@@ -60,10 +60,10 @@ wire clr_wcnt;
 reg [AW-1:0] wcnt;
 reg [AW-1:0] wcnt_max;
 
-reg inc_trpcnt;
-reg clr_trpcnt;
-reg [AW-1:0] trpcnt;
-reg [AW-1:0] trpcnt_max;
+wire inc_areqcnt;
+wire clr_areqcnt;
+reg [AW-1:0] areqcnt;
+reg [AW-1:0] areqcnt_max;
 
 wire trpffinit;
 wire trpffwreq;
@@ -100,8 +100,8 @@ always_comb begin
             else                                                                 nsm = ST_IDLE;
         ST_SET:
             if(repack_en)                                                        nsm = ST_READ;
-            else if(trpcnt != trpcnt_max)                                        nsm = ST_SET;
-            else                                                                 nsm = ST_IDLE;
+            else if(areqcnt == (areqcnt_max -1))                                 nsm = ST_IDLE;
+            else                                                                 nsm = ST_SET;
         ST_READ:
             if(rcnt == (rcnt_max - 1))                                           nsm = ST_WAIT;
             else if((mode == BIT8_MODE) & (rcnt[5:0] == (1<<6) - 1))             nsm = ST_WAIT;
@@ -116,7 +116,7 @@ always_comb begin
             else if((mode == BIT32_MODE) & (wcnt[3:0] == (1<<4) - 1))            nsm = ST_END;
             else                                                                 nsm = ST_WRITE;
         ST_END:
-            if((rcnt == rcnt_max) & (wcnt == wcnt_max) & (trpcnt == trpcnt_max)) nsm = ST_IDLE;
+            if((rcnt == rcnt_max) & (wcnt == wcnt_max) & (areqcnt == areqcnt_max)) nsm = ST_IDLE;
             else if((rcnt == rcnt_max) & (wcnt == wcnt_max))                     nsm = ST_SET;
             else                                                                 nsm = ST_READ;
     endcase
@@ -169,23 +169,17 @@ always_ff @(posedge clk or negedge reset_n) begin
     else if((mode == BIT32_MODE) & clr_rcnt) wcnt_max <= wcnt_max < (1<<4) ? 0 : wcnt_max - (1<<4);
 end
 
-always_comb begin
-    if(repack_en) inc_trpcnt = (csm == ST_END) & (rcnt == rcnt_max) & (wcnt == wcnt_max);
-    else          inc_trpcnt = (csm == ST_SET);
-end
-always_comb begin
-    if(repack_en) clr_trpcnt = (csm == ST_END) & (rcnt == rcnt_max) & (wcnt == wcnt_max) & (trpcnt == trpcnt_max);
-    else          clr_trpcnt = (trpcnt == trpcnt_max);
-end
+assign inc_areqcnt = (csm == ST_SET);
+assign clr_areqcnt = (csm == ST_IDLE);
 always@(posedge clk or negedge reset_n) begin 
-    if(!reset_n)        trpcnt <= 0;
-    else if(init_pulse) trpcnt <= 0;
-    else if(clr_trpcnt) trpcnt <= 0;
-    else if(inc_trpcnt) trpcnt <= trpcnt + 1;
+    if(!reset_n)         areqcnt <= 0;
+    else if(init_pulse)  areqcnt <= 0;
+    else if(clr_areqcnt) areqcnt <= 0;
+    else if(inc_areqcnt) areqcnt <= areqcnt + 1;
 end
 always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)        trpcnt_max <= 0;
-    else if(init_pulse) trpcnt_max <= trp_iter_num - 1;
+    if(~reset_n)        areqcnt_max <= 0;
+    else if(init_pulse) areqcnt_max <= areq_num;
 end
 
 assign trpffinit = csm == ST_END;
@@ -196,10 +190,10 @@ trp_fifo#(.BUFFD(BUFFD)) u_trp_fifo (
         .clk
     ,   .reset_n
     ,   .mode
-    ,   .ffinit(trpffinit)
-    ,   .ffwreq(trpffwreq)
-    ,   .ffrreq(trpffrreq)
-    ,   .ffwdata(trpffwdata)
+    ,   .ffinit(csm == ST_END)
+    ,   .ffwreq(repack_en & rdata_vld)
+    ,   .ffrreq(csm == ST_WRITE)
+    ,   .ffwdata(rdata)
     ,   .ffrdata(trpffrdata)
     ,   .ffrvld(trpffrvld)
 );
@@ -230,6 +224,7 @@ nested_addr_gen#(.DEPTH(DIMD), .AW(AW)) wbase_addr_gen(
 
 always@(posedge clk or negedge reset_n) begin 
     if(!reset_n)                                  packed_dim_rstride_cnt <= 0;
+    else if(csm == ST_SET)                        packed_dim_rstride_cnt <= 0;
     else if((csm == ST_END) & (rcnt == rcnt_max)) packed_dim_rstride_cnt <= 0;
     else if(csm == ST_READ)                       packed_dim_rstride_cnt <= packed_dim_rstride_cnt + packed_dim_rstride;
 end
@@ -253,6 +248,7 @@ always@(posedge clk or negedge reset_n) begin
 end
 always@(posedge clk or negedge reset_n) begin 
     if(!reset_n)                                  packed_dim_wstride_cnt <= 0;
+    else if(csm == ST_SET)                        packed_dim_wstride_cnt <= 0;
     else if((csm == ST_END) & (rcnt == rcnt_max)) packed_dim_wstride_cnt <= 0;
     else if(csm == ST_END)                        packed_dim_wstride_cnt <= packed_dim_wstride_cnt + 1;
 end
@@ -261,7 +257,6 @@ always@(posedge clk or negedge reset_n) begin
     if(~reset_n)                          raddr <= 0;
     else if(repack_en & (csm == ST_READ)) raddr <= rbase + packed_dim_rstride_cnt + unpacked_dim_rstride_cnt;
     else if(!repack_en & rbase_vld)       raddr <= rbase;
-    else                                  raddr <= 0;
 end
 always@(posedge clk or negedge reset_n) begin
     if(~reset_n)                          raddr_vld <= 0;
