@@ -123,7 +123,7 @@ always_comb begin
 end
 
 assign inc_rcnt = csm == ST_READ;
-assign clr_rcnt = csm == ST_END & (rcnt == rcnt_max);
+assign clr_rcnt = (csm == ST_END) & (rcnt == rcnt_max);
 always@(posedge clk or negedge reset_n) begin 
     if(!reset_n)        rcnt <= 0;
     else if(init_pulse) rcnt <= 0;
@@ -153,8 +153,8 @@ always@(posedge clk or negedge reset_n) begin
     else if(inc_rvldcnt) rvldcnt <= rvldcnt + 1;
 end
 
-assign inc_wcnt = (csm == ST_WRITE);
-assign clr_wcnt = (csm == ST_END);
+assign inc_wcnt = csm == ST_WRITE;
+assign clr_wcnt = csm == ST_END;
 always@(posedge clk or negedge reset_n) begin 
     if(!reset_n)        wcnt <= 0;
     else if(init_pulse) wcnt <= 0;
@@ -169,8 +169,8 @@ always_ff @(posedge clk or negedge reset_n) begin
     else if((mode == BIT32_MODE) & clr_rcnt) wcnt_max <= wcnt_max < (1<<4) ? 0 : wcnt_max - (1<<4);
 end
 
-assign inc_areqcnt = (csm == ST_SET);
-assign clr_areqcnt = (csm == ST_IDLE);
+assign inc_areqcnt = csm == ST_SET;
+assign clr_areqcnt = csm == ST_IDLE;
 always@(posedge clk or negedge reset_n) begin 
     if(!reset_n)         areqcnt <= 0;
     else if(init_pulse)  areqcnt <= 0;
@@ -190,10 +190,10 @@ trp_fifo#(.BUFFD(BUFFD)) u_trp_fifo (
         .clk
     ,   .reset_n
     ,   .mode
-    ,   .ffinit(csm == ST_END)
-    ,   .ffwreq(repack_en & rdata_vld)
-    ,   .ffrreq(csm == ST_WRITE)
-    ,   .ffwdata(rdata)
+    ,   .ffinit(trpffinit)
+    ,   .ffwreq(trpffwreq)
+    ,   .ffrreq(trpffrreq)
+    ,   .ffwdata(trpffwdata)
     ,   .ffrdata(trpffrdata)
     ,   .ffrvld(trpffrvld)
 );
