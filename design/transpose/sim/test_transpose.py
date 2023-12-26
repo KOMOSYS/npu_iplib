@@ -61,17 +61,13 @@ class RandomConfig(BaseConfig):
         self.rd_addr_info = []
         self.wr_addr_info = []
         for i in range(self.dim):
-            if i != self.unpacked_dim and i != self.packed_dim:
+            if (i != self.unpacked_dim and i != self.packed_dim) or (not self.repack_en):
                 self.rd_addr_info.append({"dim": i,
-                                          "size": in_data.shape[i],
+                                          "size": self._get_addr_size(in_data.shape, i),
                                           "stride": self._get_addr_stride(in_data.shape, i)})
                 self.wr_addr_info.append({"dim": i,
-                                          "size": in_data.shape[i],
+                                          "size": self._get_addr_size(ref_data.shape, self.trp_info.index(i)),
                                           "stride": self._get_addr_stride(ref_data.shape, self.trp_info.index(i))})
-        if not self.repack_en:
-            size = ceil(in_data.shape[-1] / self._dnum_in_word)
-            self.rd_addr_info.append({"dim" : self.unpacked_dim, "size": size, "stride": 1})
-            self.wr_addr_info.append({"dim" : self.unpacked_dim, "size": size, "stride": 1})
         self.areq_num = reduce(lambda x, y: x*y, [i["size"] for i in self.rd_addr_info], 1)
 
         self._rd_addr_list = self._addr_gen(self.rd_addr_info)
@@ -86,10 +82,16 @@ class RandomConfig(BaseConfig):
         shape = data.shape
         data = fill_zero(data, list(shape)[:-1] + [ceil(shape[-1] / self._dnum_in_word) * self._dnum_in_word])
         return data.reshape(-1, self._dnum_in_word)
+    
+    def _get_addr_size(self, shape, idx):
+        if idx == len(shape) - 1:
+            return ceil(shape[idx] / self._dnum_in_word)
+        else:
+            return shape[idx]
 
     def _get_addr_stride(self, shape, idx):
         if idx == len(shape) - 1:
-            return None
+            return 1
         elif self.mode == "BIT8_MODE":
             return reduce(lambda x, y: x*y, shape[idx+1:-1], ceil(shape[-1] / 64))
         elif self.mode == "BIT32_MODE":
@@ -97,6 +99,7 @@ class RandomConfig(BaseConfig):
 
     def _addr_gen(self, addr_info):
         addr_list = []
+        addr_info = [info for info in addr_info if info["size"] != 1]
         for indices in itertools.product(*[range(info["size"]) for info in addr_info]):
             stride = [i["stride"] for i in addr_info]
             addr_list.append(sum([i*j for i, j in zip(indices, stride)]))
@@ -119,10 +122,10 @@ class TransposeTester(BaseTester):
 
         self._dut.raddr_base.value = 0
         self._dut.waddr_base.value = 0
-        self._dut.raddr_size.value = [0] * self._dut.DIMD.value
-        self._dut.raddr_stride.value = [0] * self._dut.DIMD.value
-        self._dut.waddr_size.value = [0] * self._dut.DIMD.value
-        self._dut.waddr_stride.value = [0] * self._dut.DIMD.value
+        self._dut.raddr_size.value = [0] * self._dut.ADIMD.value
+        self._dut.raddr_stride.value = [0] * self._dut.ADIMD.value
+        self._dut.waddr_size.value = [0] * self._dut.ADIMD.value
+        self._dut.waddr_stride.value = [0] * self._dut.ADIMD.value
 
         self._dut.areq_num.value = 0
         
@@ -187,7 +190,7 @@ class TransposeTester(BaseTester):
         self._dut.mode.value = 1 if self._cfg.mode == "BIT8_MODE" else 2
         self._dut.raddr_base.value = self._cfg.raddr_base
         self._dut.waddr_base.value = self._cfg.waddr_base
-        for i in range(self._dut.DIMD.value):
+        for i in range(self._dut.ADIMD.value):
             if i < len(self._cfg.rd_addr_info):
                 self._dut.raddr_size[i].value = int(self._cfg.rd_addr_info[i]["size"])
                 self._dut.raddr_stride[i].value = int(self._cfg.rd_addr_info[i]["stride"])
