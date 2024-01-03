@@ -146,7 +146,7 @@ class TransposeTester(BaseTester):
         self.start_coroutine(self._driver())
         self.start_coroutine(self._monitor())
         self.start_coroutine(self._checker())
-        await Combine(*self.coroutines)
+        await Combine(*self.coroutines, RisingEdge(self._dut.finish))
 
         self.clear_coroutines()
 
@@ -219,6 +219,7 @@ class TransposeTester(BaseTester):
                     rdfifo.pop(0)
                 else:
                     self._dut.rdata_vld.value = 0
+        self._dut.rdata_vld.value = 0
     
     def _get_vld_byte(self, shape, addr):
         if shape[-1] < 64 and self._cfg.mode == "BIT8_MODE":

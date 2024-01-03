@@ -25,11 +25,12 @@ module transpose #(parameter AW=16, BUFFD=64, ADIMD=6)(
     input rdata_vld,
     output reg [AW-1:0] waddr,
     output reg [BUFFD*8-1:0] wdata,
-    output reg wdata_vld
+    output reg wdata_vld,
+    output reg finish
 );
 
 typedef enum logic [1:0] {
-    BIT8_MODE = 2'b01,
+    BIT8_MODE  = 2'b01,
     BIT32_MODE = 2'b10
 } mode_t;
 
@@ -106,6 +107,12 @@ reg [AW-1:0] waddr_tmp;
 reg [BUFFD*8-1:0] rdata_tmp;
 
 always@(posedge clk or negedge reset_n) begin
+    if (~reset_n)      finish <= 0;
+    else if(repack_en) finish <= (wcsm == W_END) & (wnsm == W_IDLE);
+    else               finish <= (wcsm == W_SET) & (wnsm == W_IDLE);
+end
+
+always@(posedge clk or negedge reset_n) begin
 	if (~reset_n) rcsm <= R_IDLE;
 	else          rcsm <= rnsm;
 end
@@ -138,7 +145,7 @@ always_comb begin
     endcase
 end
 
-assign inc_arreqcnt = rcsm == R_SET;
+assign inc_arreqcnt = rbase_req;
 assign clr_arreqcnt = rcsm == R_IDLE;
 always@(posedge clk or negedge reset_n) begin 
     if(~reset_n)          arreqcnt <= 0;
@@ -226,7 +233,7 @@ always_comb begin
     endcase
 end
 
-assign inc_awreqcnt = wcsm == W_SET;
+assign inc_awreqcnt = wbase_req;
 assign clr_awreqcnt = wcsm == W_IDLE;
 always@(posedge clk or negedge reset_n) begin 
     if(~reset_n)          awreqcnt <= 0;
@@ -394,10 +401,10 @@ always@(posedge clk or negedge reset_n) begin
     else if(~repack_en & wbase_vld)           wdata <= rdata_tmp;
 end
 always@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                              wdata_vld <= 0;
-    else if(init_pulse)                       wdata_vld <= 0;
-    else if(repack_en & trpffrvld[trpffridx]) wdata_vld <= 1;
-    else if(~repack_en & wbase_vld)           wdata_vld <= 1;
-    else                                      wdata_vld <= 0;
+    if(~reset_n)        wdata_vld <= 0;
+    else if(init_pulse) wdata_vld <= 0;
+    else if(repack_en)  wdata_vld <= trpffrvld[trpffridx];
+    else if(~repack_en) wdata_vld <= wbase_vld;
+    else                wdata_vld <= 0;
 end
 endmodule: transpose
