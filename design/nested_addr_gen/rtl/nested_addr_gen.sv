@@ -26,18 +26,18 @@ end
 
 /** Set address counter stride and max */
 for(genvar i=0; i<DEPTH; i++) begin
-	always_ff @(posedge clk or negedge reset_n) begin
+	always_ff@(posedge clk or negedge reset_n) begin
 		if(!reset_n)                        cnt_max[i] <= 0;
 		else if(init_pulse & cnt_enable[i]) cnt_max[i] <= size[i];
 	end
 end
 for(genvar i=0; i<DEPTH; i++) begin
-	always_ff @(posedge clk or negedge reset_n) begin
+	always_ff@(posedge clk or negedge reset_n) begin
 		if(!reset_n)        cnt_stride[i] <= 0;
 		else if(init_pulse) cnt_stride[i] <= stride[i];
 	end
 end
-always_ff @(posedge clk or negedge reset_n) begin
+always_ff@(posedge clk or negedge reset_n) begin
 	if(!reset_n)        base_addr <= 0;
 	else if(init_pulse) base_addr <= base;
 end
@@ -52,7 +52,7 @@ for(genvar i=0; i<DEPTH; i++) begin
 	else       assign inc_cnt[i] = cnt_enable[i] & clr_cnt[i-1];
 end
 for(genvar i=0; i<DEPTH; i++) begin
-	always_ff @(posedge clk or negedge reset_n) begin
+	always_ff@(posedge clk or negedge reset_n) begin
 		if(!reset_n)        ctrl_cnt[i] <= 0;
 		else if(init_pulse) ctrl_cnt[i] <= 0;
 		else if(clr_cnt[i]) ctrl_cnt[i] <= 0;
@@ -60,7 +60,7 @@ for(genvar i=0; i<DEPTH; i++) begin
 	end
 end
 for(genvar i=0; i<DEPTH; i++) begin
-	always_ff @(posedge clk or negedge reset_n) begin
+	always_ff@(posedge clk or negedge reset_n) begin
 		if(!reset_n)        addr_cnt[i] <= 0;
 		else if(init_pulse) addr_cnt[i] <= 0;
 		else if(clr_cnt[i]) addr_cnt[i] <= 0;
@@ -69,7 +69,7 @@ for(genvar i=0; i<DEPTH; i++) begin
 end
 
 /** Get output address from address counter */
-always_ff @(posedge clk or negedge reset_n) begin
+always_ff@(posedge clk or negedge reset_n) begin
 	if(!reset_n)      addr_vld <= 0;
 	else if(addr_req) addr_vld <= 1;
 	else              addr_vld <= 0;
@@ -79,7 +79,7 @@ always_comb begin
 	for(int i=0; i<DEPTH; i++)
 		cur_addr = cur_addr + addr_cnt[i];
 end
-always_ff @(posedge clk or negedge reset_n) begin
+always_ff@(posedge clk or negedge reset_n) begin
 	if(!reset_n)      addr <= 0;
 	else if(addr_req) addr <= cur_addr;
 end
