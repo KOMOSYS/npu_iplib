@@ -27,6 +27,7 @@ class RandomConfig(BaseConfig):
             if use_depth > 1: 
                 for i in range(1, use_depth): cnt_list[i] = [x + y for x,y in list(itertools.product(cnt_list[i], cnt_list[i-1]))]
             self._ref_addr = np.array(cnt_list[use_depth - 1]) + self.base_addr
+
             if (self.base_addr + np.array(self._ref_addr).max()) < (1<<addr_width): break
 
 class NestedAddrGenTester(BaseTester):
@@ -76,6 +77,7 @@ class NestedAddrGenTester(BaseTester):
         for _ in range(len(self._cfg._ref_addr)):
             self._dut.addr_req.value = 1
             await RisingEdge(self._dut.clk)
+
         self._dut.addr_req.value = 0
         await RisingEdge(self._dut.clk)
 
