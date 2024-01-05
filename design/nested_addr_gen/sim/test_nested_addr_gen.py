@@ -1,44 +1,33 @@
 import os
-import sys
-import torch
 import random
+import itertools
 import numpy as np
 import pandas as pd
-from math import ceil
-from pathlib import Path
 from tabulate import tabulate
 
 import cocotb
 from cocotb.clock import Clock
 from cocotb.queue import Queue
-from cocotb.types import LogicArray
-from cocotb.handle import SimHandleBase
-from cocotb.triggers import Timer, RisingEdge, FallingEdge, ClockCycles, Combine
+from cocotb.triggers import Timer, RisingEdge, ClockCycles, Combine
 
 from base import *
 
 class RandomConfig(BaseConfig):
-    def __init__(self):
-        self.depth = 5
-
     def randomize(self):
-        self.base = 0
+        while True:
+            addr_width = 8
+            depth = 5
 
-        self.size = []
-        self.stride = []
-        for i in range(self.depth):
-            self.size.append(10)
-            self.stride.append(1)
+            use_depth = random.randint(1, 5)
+            self.base_addr = random.randrange(0, 1<<addr_width)
+            self.size = [random.randrange(1, addr_width) if i < use_depth else 0 for i in range(depth)]
+            self.stride = [random.randrange(1, addr_width) if i < use_depth else 0 for i in range(depth)]
 
-        self._ref_addr_list =[]
-        for i in range(self.size[4]):
-            for j in range(self.size[3]):
-                for k in range(self.size[2]):
-                    for l in range(self.size[1]):
-                        for m in range(self.size[0]):
-                            ref_addr = m*self.stride[0] + l*self.stride[1] + k*self.stride[2] + j*self.stride[3] + i*self.stride[4] + self.base
-                            self._ref_addr_list.append(ref_addr)
-
+            cnt_list = [list(range(0, self.size[i]*self.stride[i], self.stride[i])) if i < use_depth else 0 for i in range(use_depth)]
+            if use_depth > 1: 
+                for i in range(1, use_depth): cnt_list[i] = [x + y for x,y in list(itertools.product(cnt_list[i], cnt_list[i-1]))]
+            self._ref_addr = np.array(cnt_list[use_depth - 1]) + self.base_addr
+            if (self.base_addr + np.array(self._ref_addr).max()) < (1<<addr_width): break
 
 class NestedAddrGenTester(BaseTester):
     def __init__(self, dut, cfg):
@@ -51,7 +40,7 @@ class NestedAddrGenTester(BaseTester):
         self._dut.reset_n.value = 0
         self._dut.init_pulse.value = 0
         self._dut.base.value = 0
-        for i in range(self._cfg.depth):
+        for i in range(self._dut.DEPTH.value):
             self._dut.size[i].value = 0
             self._dut.stride[i].value = 0
         self._dut.addr_req.value = 0
@@ -68,16 +57,12 @@ class NestedAddrGenTester(BaseTester):
         await Combine(*self.coroutines)
 
         self.clear_coroutines()
-        await RisingEdge(self._dut.clk)
-        self._dut.init_pulse.value = 1
-        await RisingEdge(self._dut.clk)
-        self._dut.init_pulse.value = 0
         await ClockCycles(self._dut.clk, 10)
     
     def _set_register(self) -> None:
-        self._dut.base.value   = self._cfg.base
-        for i in range(self._cfg.depth):
-            self._dut.size[i].value   = self._cfg.size[i]
+        self._dut.base.value = self._cfg.base_addr
+        for i in range(self._dut.DEPTH.value):
+            self._dut.size[i].value = self._cfg.size[i]
             self._dut.stride[i].value = self._cfg.stride[i]
 
     async def _driver(self) -> None:
@@ -86,26 +71,27 @@ class NestedAddrGenTester(BaseTester):
         self._dut.init_pulse.value = 1
         await RisingEdge(self._dut.clk)
         self._dut.init_pulse.value = 0
-
         await RisingEdge(self._dut.clk)
-        for _ in range(len(self._cfg._ref_addr_list)):
+
+        for _ in range(len(self._cfg._ref_addr)):
             self._dut.addr_req.value = 1
             await RisingEdge(self._dut.clk)
         self._dut.addr_req.value = 0
+        await RisingEdge(self._dut.clk)
 
     async def _monitor(self) -> None:
-        for i in range(len(self._cfg._ref_addr_list)):
-            while True:
+        for i in range(len(self._cfg._ref_addr)):
+            await RisingEdge(self._dut.clk)
+            while not self._dut.addr_vld.value:
                 await RisingEdge(self._dut.clk)
-                if self._dut.addr_vld.value:
-                    break
+            
             addr = self._dut.addr.value.binstr
             self._monit_port.put_nowait(addr)
 
     async def _checker(self) -> None:
-        for i in range(len(self._cfg._ref_addr_list)):
+        for i in range(len(self._cfg._ref_addr)):
             addr = await self._monit_port.get()
-            ref_addr = self._cfg._ref_addr_list[i]
+            ref_addr = self._cfg._ref_addr[i]
 
             compare_datas = {
                 "actual"   : str(int(addr, 2)),
@@ -128,7 +114,7 @@ async def normal(dut):
     tester.init_phase()
     await tester.reset_phase()
 
-    for iter in range(1):
+    for iter in range(max_iter):
         cocotb.log.info(f"Iteration {iter}")
         set_seed(random_seed+iter)
         cfg.randomize()
