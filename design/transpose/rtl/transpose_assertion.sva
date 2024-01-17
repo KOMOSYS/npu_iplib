@@ -1,0 +1,44 @@
+module transpose_assertion #(parameter AW=16, BUFFD=64)(
+    input clk,
+    input reset_n,
+    input raddr_vld,
+    input [AW-1:0] raddr,
+    input rdata_vld,
+    input [BUFFD*8-1:0] rdata,
+    input [BUFFD*8-1:0] wdata,
+    input wdata_vld,
+    input trpffinit[2],
+    input trpffwreq[2],
+    input trpffrreq[2],
+    input finish
+);
+
+property addr_unknown(logic valid, logic [AW-1:0] addr);
+    @(posedge clk) disable iff (~reset_n) valid |-> !$isunknown(addr);
+endproperty: addr_unknown
+
+property data_unknown(logic valid, logic [BUFFD*8-1:0] data);
+    @(posedge clk) disable iff (~reset_n) valid |-> !$isunknown(data);
+endproperty: data_unknown
+
+property fifo_init(logic wreq, logic init, logic rreq);
+    @(posedge clk) disable iff (~reset_n) $fell(rreq) |-> ($rose(init)[=1] ##1 $fell(init)) within (##[1:$] ($rose(wreq) or $rose(finish)));
+endproperty: fifo_init
+
+raddr_unknown:
+assert property(addr_unknown(raddr_vld, raddr)) else $fatal("Read Address is Unknown");
+
+rdata_unknown:
+assert property(data_unknown(rdata_vld, rdata)) else $fatal("Read Data is Unknown");
+
+wdata_unknown:
+assert property(data_unknown(wdata_vld, wdata)) else $fatal("Write Data is Unknown");
+
+for(genvar i=0; i<2; i++) begin: trpff_init
+    trpff_init:
+    assert property(fifo_init(trpffwreq[i], trpffinit[i], trpffrreq[i]));
+    trpff_req:
+    assert property(@(posedge clk) disable iff (~reset_n) trpffwreq[i] |-> ~trpffrreq[i]);
+end
+
+endmodule: transpose_assertion

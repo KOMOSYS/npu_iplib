@@ -1,4 +1,4 @@
-module transpose #(parameter AW=16, BUFFD=64, ADIMD=6)(
+module transpose #(parameter AW=16, BUFFD=64, ADIM=6)(
     input clk,
     input reset_n,
     input init_pulse,
@@ -6,11 +6,11 @@ module transpose #(parameter AW=16, BUFFD=64, ADIMD=6)(
     input [1:0] mode,
 
     input [AW-1:0] raddr_base,
-    input [AW-1:0] raddr_size[ADIMD],
-    input [AW-1:0] raddr_stride[ADIMD],
+    input [AW-1:0] raddr_size[ADIM],
+    input [AW-1:0] raddr_stride[ADIM],
     input [AW-1:0] waddr_base,
-    input [AW-1:0] waddr_size[ADIMD],
-    input [AW-1:0] waddr_stride[ADIMD],
+    input [AW-1:0] waddr_size[ADIM],
+    input [AW-1:0] waddr_stride[ADIM],
 
     input [AW-1:0] areq_num,
 
@@ -83,7 +83,8 @@ wire inc_rvldcnt[2];
 wire clr_rvldcnt[2];
 reg [$clog2(BUFFD):0] rvldcnt[2];
 
-wire trpffrdy[2];
+wire trpffwrdy[2];
+wire trpffrrdy[2];
 wire trpffwidx;
 reg trpffridx;
 wire trpffinit[2];
@@ -130,7 +131,7 @@ always_comb begin
             else if(arreqcnt == (arreqcnt_max - 1))                             rnsm = R_IDLE;
             else                                                                rnsm = R_SET;
         R_WAIT:
-            if(rreqcnt[rreqidx] == 0)                                           rnsm = R_READ;
+            if(trpffwrdy[rreqidx])                                              rnsm = R_READ;
             else                                                                rnsm = R_WAIT;
         R_READ:
             if(rcnt[0] == (rcnt_max[0] - 1))                                    rnsm = R_END;
@@ -200,7 +201,7 @@ always_comb begin
             else if(awreqcnt == (awreqcnt_max - 1))                             wnsm = W_IDLE;
             else                                                                wnsm = W_SET;
         W_WAIT:
-            if(trpffrdy[trpffridx])                                             wnsm = W_WRITE;
+            if(trpffrrdy[trpffridx])                                            wnsm = W_WRITE;
             else                                                                wnsm = W_WAIT;
         W_WRITE:
             if(wcnt[0] == (wcnt_max[0] - 1))                                    wnsm = W_END;
@@ -275,9 +276,9 @@ for(genvar i=0; i<2; i++) begin
     end
 end
 always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)               rvldidx <= 0;
-    else if(init_pulse)        rvldidx <= 0;
-    else if(trpffrdy[rvldidx]) rvldidx <= ~rvldidx;
+    if(~reset_n)                rvldidx <= 0;
+    else if(init_pulse)         rvldidx <= 0;
+    else if(trpffrrdy[rvldidx]) rvldidx <= ~rvldidx;
 end
 for(genvar i=0; i<2; i++) begin
     assign inc_rvldcnt[i] = (rvldidx == i) & rdata_vld;
@@ -297,7 +298,8 @@ always_ff@(posedge clk or negedge reset_n) begin
     else if(wcsm == W_END) trpffridx <= ~trpffridx;
 end
 for(genvar i=0; i<2; i++) begin: trp_fifo
-    assign trpffrdy[i] = (rreqcnt[i] == rvldcnt[i]) & (rvldcnt[i] != 0);
+    assign trpffwrdy[i] = rreqcnt[i] == 0;
+    assign trpffrrdy[i] = (rreqcnt[i] == rvldcnt[i]) & (rvldcnt[i] != 0);
     assign trpffinit[i] = (trpffridx == i) & (wcsm == W_END);
     assign trpffwreq[i] = (trpffwidx == i) & repack_en & rdata_vld;
     assign trpffrreq[i] = (trpffridx == i) & (wcsm == W_WRITE);
@@ -317,7 +319,7 @@ for(genvar i=0; i<2; i++) begin: trp_fifo
 end
 
 assign rbase_req = rcsm == R_SET;
-nested_addr_gen#(.DEPTH(ADIMD), .AW(AW)) rbase_addr_gen(
+nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) rbase_addr_gen(
     .clk
 ,   .reset_n
 ,   .init_pulse
@@ -356,7 +358,7 @@ always_ff@(posedge clk or negedge reset_n) begin
 end
 
 assign wbase_req = repack_en ? (wcsm == W_SET) : rdata_vld;
-nested_addr_gen#(.DEPTH(ADIMD), .AW(AW)) wbase_addr_gen(
+nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) wbase_addr_gen(
     .clk
 ,   .reset_n
 ,   .init_pulse
@@ -412,10 +414,10 @@ always_ff@(posedge clk or negedge reset_n) begin
     else if(~repack_en & wbase_vld)           wdata <= rdata_tmp;
 end
 always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)        wdata_vld <= 0;
-    else if(init_pulse) wdata_vld <= 0;
-    else if(repack_en)  wdata_vld <= trpffrvld[trpffridx];
-    else if(~repack_en) wdata_vld <= wbase_vld;
-    else                wdata_vld <= 0;
+    if(~reset_n)                              wdata_vld <= 0;
+    else if(init_pulse)                       wdata_vld <= 0;
+    else if(repack_en & trpffrvld[trpffridx]) wdata_vld <= 1;
+    else if(~repack_en & wbase_vld)           wdata_vld <= 1;
+    else                                      wdata_vld <= 0;
 end
 endmodule: transpose

@@ -17,6 +17,7 @@ from cocotb.types import LogicArray
 from cocotb.handle import SimHandleBase
 from cocotb.triggers import Timer, RisingEdge, FallingEdge, ClockCycles, Combine
 
+import sequence
 from base import *
 from constant import *
 from formatter import *
@@ -110,7 +111,7 @@ class TransposeTester(BaseTester):
     def __init__(self, dut, cfg):
         self._dut = dut
         self._cfg = cfg
-        self._mem_rd_delay = 7
+        self._mem_rd_delay = 17
         self._mon_port = Queue()
     
     def init_phase(self):
@@ -122,10 +123,10 @@ class TransposeTester(BaseTester):
 
         self._dut.raddr_base.value = 0
         self._dut.waddr_base.value = 0
-        self._dut.raddr_size.value = [0] * self._dut.ADIMD.value
-        self._dut.raddr_stride.value = [0] * self._dut.ADIMD.value
-        self._dut.waddr_size.value = [0] * self._dut.ADIMD.value
-        self._dut.waddr_stride.value = [0] * self._dut.ADIMD.value
+        self._dut.raddr_size.value = [0] * self._dut.ADIM.value
+        self._dut.raddr_stride.value = [0] * self._dut.ADIM.value
+        self._dut.waddr_size.value = [0] * self._dut.ADIM.value
+        self._dut.waddr_stride.value = [0] * self._dut.ADIM.value
 
         self._dut.areq_num.value = 0
         
@@ -190,7 +191,7 @@ class TransposeTester(BaseTester):
         self._dut.mode.value = 1 if self._cfg.mode == "BIT8_MODE" else 2
         self._dut.raddr_base.value = self._cfg.raddr_base
         self._dut.waddr_base.value = self._cfg.waddr_base
-        for i in range(self._dut.ADIMD.value):
+        for i in range(self._dut.ADIM.value):
             if i < len(self._cfg.rd_addr_info):
                 self._dut.raddr_size[i].value = int(self._cfg.rd_addr_info[i]["size"])
                 self._dut.raddr_stride[i].value = int(self._cfg.rd_addr_info[i]["stride"])
@@ -236,6 +237,85 @@ class TransposeTester(BaseTester):
                 
 random_seed = int(os.getenv("RANDOM_SEED")) if os.getenv("RANDOM_SEED") is not None else 1
 max_iter = int(os.getenv("MAX_ITER")) if os.getenv("MAX_ITER") is not None else 100
+
+@cocotb.test()
+@intr_handler
+async def small_img(dut):
+    clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    cfg = RandomConfig()
+    tester = TransposeTester(dut, cfg)
+
+    tester.init_phase()
+    await tester.reset_phase()
+
+    for iter in range(max_iter):
+        cocotb.log.info(f"Iteration {iter}")
+        set_seed(random_seed+iter)
+        cfg.unfreeze("dim", "in_shape")
+        cfg.dim = random.randint(2, 6)
+        cfg.in_shape = [1] * cfg.dim
+        cfg.in_shape[-1] = np.random.randint(2, 193)
+        np.random.shuffle(cfg.in_shape)
+        cfg.in_shape = tuple(cfg.in_shape)
+        cfg.freeze("dim", "in_shape")
+        cfg.randomize()
+        cocotb.log.info(cfg)
+
+        with timeout(10, "m"):
+            await tester.main_phase()
+    clk.kill()
+
+@cocotb.test()
+@intr_handler
+async def random_dynamic_reset(dut):
+    clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    cfg = RandomConfig()
+    tester = TransposeTester(dut, cfg)
+
+    tester.init_phase()
+    await tester.reset_phase()
+
+    for iter in range(max_iter):
+        cocotb.log.info(f"Iteration {iter}")
+        set_seed(random_seed+iter)
+        cfg.randomize()
+        cocotb.log.info(cfg)
+        with timeout(10, "m"):
+            await sequence.dynamic_reset(tester, cfg)
+    clk.kill()
+
+@cocotb.test()
+@intr_handler
+async def directed_dynamic_reset(dut):
+    clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    cfg = RandomConfig()
+    tester = TransposeTester(dut, cfg)
+
+    tester.init_phase()
+    await tester.reset_phase()
+
+    set_seed(random_seed)
+    cfg.randomize()
+
+    async def chk_sig_eq(signal, value):
+        while signal.value != value:
+            await RisingEdge(dut.clk)
+
+    for i in range(5):
+        cfg.dync_rst_trg = f"rcsm[{i}]"
+        cocotb.log.info(cfg)
+        with timeout(10, "m"):
+            condition = cocotb.start_soon(chk_sig_eq(getattr(dut, "u_transpose.rcsm"), 1<<i))
+            await sequence.dynamic_reset(tester, cfg, condition)
+
+    for i in range(5):
+        cfg.dync_rst_trg = f"wcsm[{i}]"
+        cocotb.log.info(cfg)
+        with timeout(10, "m"):
+            condition = cocotb.start_soon(chk_sig_eq(getattr(dut, "u_transpose.wcsm"), 1<<i))
+            await sequence.dynamic_reset(tester, cfg, condition)
+
+    clk.kill()
 
 @cocotb.test()
 @intr_handler
