@@ -1,1 +1,4 @@
 nested_addr_gen.sv
+nested_addr_gen_coverage.sv
+nested_addr_gen_assertion.sva
+top.sv

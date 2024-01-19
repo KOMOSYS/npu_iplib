@@ -5,8 +5,8 @@ module trp_fifo #(parameter BUFFD=64)(
     input ffinit,
     input ffwreq,
     input ffrreq,
-    input [BUFFD*8-1:0] ffwdata,
-    output reg [BUFFD*8-1:0] ffrdata,
+    input [BUFFD-1:0][7:0] ffwdata,
+    output reg [BUFFD-1:0][7:0] ffrdata,
     output reg ffrvld
 );
 
@@ -26,9 +26,9 @@ always_ff@(posedge clk or negedge reset_n) begin
     else if(ffwreq) buffer[wcnt] <= ffwdata;
 end
 always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                           for(int i=0; i<BUFFD; i++) ffrdata[8*i+:8] <= 8'b0;
-    else if(ffrreq & (mode == BIT8_MODE))  for(int i=0; i<BUFFD; i++) ffrdata[8*i+:8] <= buffer[i][rcnt];
-    else if(ffrreq & (mode == BIT32_MODE)) for(int i=0; i<BUFFD; i++) ffrdata[8*i+:8] <= buffer[i/4][rcnt*4+(i%4)];
+    if(~reset_n)                           for(int i=0; i<BUFFD; i++) ffrdata[i] <= 8'b0;
+    else if(ffrreq & (mode == BIT8_MODE))  for(int i=0; i<BUFFD; i++) ffrdata[i] <= buffer[i][rcnt];
+    else if(ffrreq & (mode == BIT32_MODE)) for(int i=0; i<BUFFD; i++) ffrdata[i] <= buffer[i/4][rcnt*4+(i%4)];
 end
 
 /** Increase or decrease counter

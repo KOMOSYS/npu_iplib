@@ -7,20 +7,18 @@ import numpy as np
 import pandas as pd
 from math import ceil
 from pathlib import Path
-from functools import reduce
 from tabulate import tabulate
 
 import cocotb
 from cocotb.clock import Clock
 from cocotb.queue import Queue
 from cocotb.types import LogicArray
-from cocotb.handle import SimHandleBase
-from cocotb.triggers import Timer, RisingEdge, FallingEdge, ClockCycles, Combine
+from cocotb.triggers import Timer, RisingEdge, Combine
 
 import sequence
 from base import *
 from constant import *
-from formatter import *
+from memory import *
 
 class RandomConfig(BaseConfig):
     def randomize(self):
@@ -48,8 +46,8 @@ class RandomConfig(BaseConfig):
         elif self.mode == "BIT32_MODE":
             in_data = np.random.rand(*self.in_shape).astype(np.float32)
         ref_data = in_data.transpose(*self.trp_info)
-        self._input_mem = np2mem(self._split2word(in_data))
-        self._output_mem = np2mem(self._split2word(ref_data))
+        self._input_mem = Memory(in_data, append_last=False)
+        self._output_mem = Memory(ref_data, append_last=False)
         
         self.packed_dim = self.trp_info[-1]
         self.packed_dim_rd_size = self.in_shape[self.packed_dim]
@@ -69,20 +67,15 @@ class RandomConfig(BaseConfig):
                 self.wr_addr_info.append({"dim": i,
                                           "size": self._get_addr_size(ref_data.shape, self.trp_info.index(i)),
                                           "stride": self._get_addr_stride(ref_data.shape, self.trp_info.index(i))})
-        self.areq_num = reduce(lambda x, y: x*y, [i["size"] for i in self.rd_addr_info], 1)
 
+        self.areq_num = np.prod([i["size"] for i in self.rd_addr_info])
         self._rd_addr_list = self._addr_gen(self.rd_addr_info)
         self._wr_addr_list = self._addr_gen(self.wr_addr_info)
         self.rd_addr_info = self.rd_addr_info[::-1]
         self.wr_addr_info = self.wr_addr_info[::-1]
     
     def _get_mem_depth(self, shape):
-        return reduce(lambda x, y: x*y, shape[:-1]) * ceil(shape[-1] / self._dnum_in_word)
-    
-    def _split2word(self, data):
-        shape = data.shape
-        data = fill_zero(data, list(shape)[:-1] + [ceil(shape[-1] / self._dnum_in_word) * self._dnum_in_word])
-        return data.reshape(-1, self._dnum_in_word)
+        return np.prod(shape[:-1]) * ceil(shape[-1] / self._dnum_in_word)
     
     def _get_addr_size(self, shape, idx):
         if idx == len(shape) - 1:
@@ -93,10 +86,8 @@ class RandomConfig(BaseConfig):
     def _get_addr_stride(self, shape, idx):
         if idx == len(shape) - 1:
             return 1
-        elif self.mode == "BIT8_MODE":
-            return reduce(lambda x, y: x*y, shape[idx+1:-1], ceil(shape[-1] / 64))
-        elif self.mode == "BIT32_MODE":
-            return reduce(lambda x, y: x*y, shape[idx+1:-1], ceil(shape[-1] / 16))
+        else:
+            return np.prod(shape[idx+1:-1]) * ceil(shape[-1] / self._dnum_in_word)
 
     def _addr_gen(self, addr_info):
         addr_list = []
@@ -162,7 +153,7 @@ class TransposeTester(BaseTester):
         self.start_coroutine(self._mem_read())
 
     async def _monitor(self) -> None:
-        for _ in range(len(self._cfg._output_mem)):
+        for _ in range(self._cfg._output_mem.depth):
             await RisingEdge(self._dut.clk)
             while not self._dut.wdata_vld.value:
                 await RisingEdge(self._dut.clk)
@@ -172,10 +163,10 @@ class TransposeTester(BaseTester):
 
     async def _checker(self) -> None:
         waddr_list = []
-        for iter in range(len(self._cfg._output_mem)):
+        for iter in range(self._cfg._output_mem.depth):
             addr, data = await self._mon_port.get()
             waddr_list.append(addr)
-            vld_byte = self._get_vld_byte(self._cfg.ref_shape, addr)
+            vld_byte = self._cfg._output_mem.get_vld_byte(addr)
             actual = data[-vld_byte * 8:]
             expected = self._cfg._output_mem[addr][-vld_byte * 8:]
             compare_datas = {
@@ -206,7 +197,7 @@ class TransposeTester(BaseTester):
 
     async def _mem_read(self):
         rdfifo = []
-        for _ in range(len(self._cfg._input_mem)):
+        for _ in range(self._cfg._input_mem.depth):
             while True:
                 await RisingEdge(self._dut.clk)
                 for i in rdfifo:
@@ -215,24 +206,12 @@ class TransposeTester(BaseTester):
                     raddr = self._dut.raddr.value - self._cfg.raddr_base
                     rdfifo.append({"addr": raddr, "delay":self._mem_rd_delay})
                 if rdfifo and rdfifo[0]["delay"] == 0:
-                    self._dut.rdata.value = LogicArray(self._cfg._input_mem[rdfifo[0]["addr"]].zfill(512))
+                    self._dut.rdata.value = LogicArray(self._cfg._input_mem[rdfifo[0]["addr"]])
                     self._dut.rdata_vld.value = 1
                     rdfifo.pop(0)
                 else:
                     self._dut.rdata_vld.value = 0
         self._dut.rdata_vld.value = 0
-    
-    def _get_vld_byte(self, shape, addr):
-        if shape[-1] < 64 and self._cfg.mode == "BIT8_MODE":
-            return shape[-1]
-        elif shape[-1] < 16 and self._cfg.mode == "BIT32_MODE":
-            return shape[-1] * 4
-        elif self._cfg.mode == "BIT8_MODE":
-            data_wsize = ceil(shape[-1] / 64)
-            return shape[-1] % 64 if addr % data_wsize == data_wsize - 1 else 64
-        elif self._cfg.mode == "BIT32_MODE":
-            data_wsize = ceil(shape[-1] / 16)
-            return (shape[-1] % 16) * 4 if addr % data_wsize == data_wsize - 1 else 64
 
                 
 random_seed = int(os.getenv("RANDOM_SEED")) if os.getenv("RANDOM_SEED") is not None else 1

@@ -325,10 +325,13 @@ nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) rbase_addr_gen(
 ,   .init_pulse
 ,   .addr_req(rbase_req)
 ,   .base(raddr_base)
+,   .pad_before('{ADIM{0}})
 ,   .size(raddr_size)
+,   .pad_after('{ADIM{0}})
 ,   .stride(raddr_stride)
 ,   .addr(rbase)
 ,   .addr_vld(rbase_vld)
+,   .pad_vld()
 );
 always_ff@(posedge clk or negedge reset_n) begin
     if(~reset_n)            packed_dim_rstride_cnt <= 0;
@@ -364,10 +367,13 @@ nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) wbase_addr_gen(
 ,   .init_pulse
 ,   .addr_req(wbase_req)
 ,   .base(waddr_base)
+,   .pad_before('{ADIM{0}})
 ,   .size(waddr_size)
+,   .pad_after('{ADIM{0}})
 ,   .stride(waddr_stride)
 ,   .addr(wbase)
 ,   .addr_vld(wbase_vld)
+,   .pad_vld()
 );
 always_ff@(posedge clk or negedge reset_n) begin
     if(~reset_n)                                unpacked_dim_woffset <= 0;

@@ -48,15 +48,9 @@ class BaseConfig:
 
 
 class BaseTester(abc.ABC):
-    _instance = None
     _coroutines = []
     _file_handlder = logging.FileHandler("vcs.run.log")
     cocotb.log.addHandler(_file_handlder)
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
     @abc.abstractmethod
     def init_phase(self) -> None:
@@ -113,7 +107,7 @@ def _raise_timeout(*args):
     raise TimeoutError
 
 @contextmanager
-def timeout(time: int, units="m"):
+def timeout(time: int, units="s"):
     if type(time) != int or units not in ["s", "m", "h"]:
         raise ValueError("Invalid time unit")
 
