@@ -1,5 +1,6 @@
 import numpy as np
 from math import ceil
+from pathlib import Path
 
 __all__ = ["Memory"]
 
@@ -36,6 +37,9 @@ class Memory:
         else:
             return self._width // 8
     
+    def dump(self, fpath="./dump.hex"):
+        Path(fpath).write_text("\n".join([format(int(self[i], 2), f"0{self._width // 8}x") for i in range(self.depth)]))
+
     @property
     def depth(self):
         return len(self._mem)

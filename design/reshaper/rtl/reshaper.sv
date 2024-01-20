@@ -1,4 +1,4 @@
-module reshaper #(parameter AW=16, DW=512, ADIM=6)(
+module reshaper #(parameter AW=16, DW=512, ADIM=6, MEM_DELAY=8)(
     input clk,
     input reset_n,
     input init_pulse,
@@ -24,8 +24,7 @@ module reshaper #(parameter AW=16, DW=512, ADIM=6)(
     output reg wdata_vld,
     output reg finish
 );
-parameter MEM_DELAY = 8;
-parameter RDFFD = MEM_DELAY + 3;
+localparam RDFFD = MEM_DELAY + 3;
 
 wire inc_rreqcnt;
 wire clr_rreqcnt;
@@ -59,7 +58,6 @@ wire [$clog2(DW/8):0] rshpffrbyte;
 reg [DW-1:0] rshpffrdata;
 reg rshpffrvld;
 wire [$clog2(DW/8*2):0] rshpffvbyte;
-wire rshpffwfull;
 wire rshpffrempty;
 
 wire inc_wreqcnt;
@@ -87,7 +85,7 @@ always_ff@(posedge clk or negedge reset_n) begin
     else if(rdata_vld)             pend_rreqcnt <= pend_rreqcnt - 1;
 end
 
-assign raddr_req = ((rdffvcnt + pend_rreqcnt) < RDFFD) & (rreqcnt < rreqcnt_max);
+assign raddr_req = ((rdffvcnt + pend_rreqcnt) < RDFFD) & (rreqcnt < rreqcnt_max) & ~init_pulse;
 nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) raddr_gen(
     .clk
 ,   .reset_n
@@ -143,7 +141,7 @@ always_ff@(posedge clk or negedge reset_n) begin
     else if(init_pulse) wbytecnt_max <= wdata_size;
 end
 
-assign rshpffwreq = rshpffwdata_vld & ~rshpffwfull;
+assign rshpffwreq = rshpffwdata_vld & (rshpffrreq ? (rshpffvbyte - rshpffrbyte) <= (DW/8) : rshpffvbyte <= (DW/8));
 assign rshpffwbyte = ((rbytecnt_max - rbytecnt) > (DW/8)) ? (DW/8) : (rbytecnt_max - rbytecnt);
 assign rshpffwdata = rshpffwdata_vld ? rdffrdata : rshpffwdata;
 always_ff@(posedge clk or negedge reset_n) begin
@@ -156,7 +154,7 @@ end
 assign rshpffrreq = ~rshpffrempty & (rshpffvbyte >= rshpffrbyte);
 assign rshpffrbyte = ((wbytecnt_max - wbytecnt) > (DW/8)) ? (DW/8) : (wbytecnt_max - wbytecnt);
 
-rshp_fifo #(.DW(DW)) u_rshp_fifo(
+rshp_fifo #(.DW(DW)) rshp_fifo(
     .clk
 ,   .reset_n
 ,   .ffwreq(rshpffwreq)
@@ -167,11 +165,11 @@ rshp_fifo #(.DW(DW)) u_rshp_fifo(
 ,   .ffrdata(rshpffrdata)
 ,   .ffrvld(rshpffrvld)
 ,   .ffvbyte(rshpffvbyte)
-,   .ffwfull(rshpffwfull)
+,   .ffwfull()
 ,   .ffrempty(rshpffrempty)
 );
 
-assign waddr_req = rshpffrreq;
+assign waddr_req = rshpffrreq & ~init_pulse;
 nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) waddr_gen(
     .clk
 ,   .reset_n
@@ -183,7 +181,7 @@ nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) waddr_gen(
 ,   .pad_after('{ADIM{0}})
 ,   .stride(waddr_stride)
 ,   .addr(waddr)
-,   .addr_vld() //TODO check with data valid assertion
+,   .addr_vld()
 ,   .pad_vld()
 );
 
@@ -211,11 +209,10 @@ always_ff@(posedge clk or negedge reset_n) begin
     if(~reset_n)         wreqcnt_max <= 0;
     else if(init_pulse)  wreqcnt_max <= wreq_num;
 end
-
 always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)                                                 finish <= 0;
-    else if((rreqcnt == rreqcnt_max) & (wreqcnt == wreqcnt_max)) finish <= 1;
-    else                                                         finish <= 0;
+    if(~reset_n)                                                                 finish <= 0;
+    else if((rreqcnt == rreqcnt_max) & (wreqcnt == wreqcnt_max) & (wreqcnt !=0)) finish <= 1;
+    else                                                                         finish <= 0;
 end
 
 endmodule: reshaper

@@ -2,3 +2,6 @@
 fifo.sv
 rshp_fifo.sv
 reshaper.sv
+reshaper_coverage.sv
+reshaper_assertion.sva
+top.sv

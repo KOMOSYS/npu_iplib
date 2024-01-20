@@ -8,7 +8,7 @@ from tabulate import tabulate
 import cocotb
 from cocotb.clock import Clock
 from cocotb.queue import Queue
-from cocotb.triggers import Timer, RisingEdge, ClockCycles, Combine
+from cocotb.triggers import Timer, RisingEdge, Combine
 
 from base import *
 
@@ -48,7 +48,6 @@ class NestedAddrGenTester(BaseTester):
         self._monit_port = Queue()
     
     def init_phase(self):
-        self._dut.clk.value = 0
         self._dut.reset_n.value = 0
         self._dut.init_pulse.value = 0
         self._dut.base.value = 0
