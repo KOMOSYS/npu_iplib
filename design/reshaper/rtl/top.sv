@@ -30,7 +30,6 @@ bind top.u_reshaper reshaper_assertion #(.AW(AW)) u_reshaper_assertion(
     .clk
 ,   .reset_n
 ,   .init_pulse
-,   .waddr_vld(waddr_gen.addr_vld)
 ,   .rshpffrvld
 ,   .rdffwfull(rd_fifo.ffwfull)
 ,   .rdffwreq(rd_fifo.ffwreq)
@@ -39,6 +38,7 @@ bind top.u_reshaper reshaper_assertion #(.AW(AW)) u_reshaper_assertion(
 ,   .wreq_num
 ,   .raddr_vld
 ,   .rdata_vld
+,   .waddr_vld(waddr_gen.addr_vld)
 ,   .wdata_vld
 ,   .finish
 );

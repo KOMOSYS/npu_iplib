@@ -19,8 +19,12 @@ class Memory:
     
     def __getitem__(self, addr):
         return "".join(self._np2binstr(self._mem[addr])[::-1])
+    
+    def get_mask(self, addr: int) -> str:
+        vld_bit = self._get_vld_byte(addr) * 8
+        return ("1" * vld_bit).zfill(self._width)
 
-    def get_vld_byte(self, addr: int) -> int:
+    def _get_vld_byte(self, addr: int) -> int:
         if addr >= self.depth:
             raise ValueError("Address is larger than memory depth")
         dnum_in_word = self._width // (self._dsize * 8)

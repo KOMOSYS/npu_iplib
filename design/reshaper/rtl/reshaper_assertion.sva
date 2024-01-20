@@ -20,13 +20,16 @@ sequence rose_fell(logic signal);
 endsequence: rose_fell
 
 property valid_intersect();
-    @(posedge clk) disable iff(~reset_n) $rose(rshpffrvld) |-> rose_fell(waddr_vld) intersect rose_fell(rshpffrvld);
+    @(posedge clk) disable iff(~reset_n) $rose(waddr_vld) |-> rose_fell(waddr_vld) intersect rose_fell(wdata_vld);
 endproperty: valid_intersect
 
 property fifo_fullwrite(logic isfull, logic wen);
     @(posedge clk) disable iff(~reset_n) isfull |-> ~wen;
 endproperty: fifo_fullwrite
 
+/** Sequence to count request num
+* Until rising edge of finish, request valid count must reach request num
+*/
 sequence req_num_checker(logic [AW-1:0] req_num, logic req_vld);
     logic [AW-1:0] cnt_max;
     logic [AW-1:0] cnt;

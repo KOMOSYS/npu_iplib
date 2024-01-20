@@ -10,7 +10,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.queue import Queue
 from cocotb.types import LogicArray
-from cocotb.triggers import Timer, RisingEdge, Combine
+from cocotb.triggers import Timer, RisingEdge, FallingEdge, Combine
 
 from base import *
 from constant import *
@@ -18,24 +18,20 @@ from memory import *
 
 class RandomConfig(BaseConfig):
     def randomize(self):
-        input_dim = random.randint(2, 6)
-        self.dsize = np.random.choice([1, 4])
-        self._dnum_in_word = 64 // self.dsize
+        self.dim = random.randint(2, 6)
+        self.dtype = np.random.choice([np.int8, np.float32])
+        self._dnum_in_word = 64 // np.dtype(self.dtype).itemsize
 
         while True:
-            self.in_shape = tuple(np.random.randint(1, 193, size=input_dim))
-            if self._get_mem_depth(self.in_shape) >= (1<<16):
-                continue
+            self.in_shape = tuple(np.random.randint(1, 193, size=self.dim))
             self.out_shape = list(self.in_shape)
             np.random.shuffle(self.out_shape)
-            if self._get_mem_depth(self.out_shape) >= (1<<16):
-                continue
-            if self.in_shape[-1] != self.out_shape[-1]:
+            if max(self._get_mem_depth(self.in_shape), self._get_mem_depth(self.out_shape)) < (1<<16) and self.in_shape[-1] != self.out_shape[-1]:
                 break
 
-        if self.dsize == 1:
-            in_data = np.random.randint(INT8MIN, INT8MAX, size=self.in_shape).astype(np.int8)
-        else:
+        if self.dtype == np.int8:
+            in_data = np.random.randint(INT8MIN, INT8MAX+1, size=self.in_shape, dtype=np.int8)
+        elif self.dtype == np.float32:
             in_data = np.random.rand(*self.in_shape).astype(np.float32)
         ref_data = in_data.reshape(*self.out_shape)
 
@@ -45,8 +41,9 @@ class RandomConfig(BaseConfig):
         self.rd_addr_info = [self._get_addr_info(in_data.shape, i) for i in range(in_data.ndim)][::-1]
         self.wr_addr_info = [self._get_addr_info(ref_data.shape, i) for i in range(ref_data.ndim)][::-1]
 
-        self.rdata_size = in_data.shape[-1] * self.dsize
-        self.wdata_size = ref_data.shape[-1] * self.dsize
+        self.rdata_size = in_data.shape[-1] * np.dtype(self.dtype).itemsize
+        self.wdata_size = ref_data.shape[-1] * np.dtype(self.dtype).itemsize
+
         self._input_mem = Memory(in_data, append_last=False)
         self._output_mem = Memory(ref_data, append_last=False)
     
@@ -95,8 +92,7 @@ class ReshaperTester(BaseTester):
         self.start_coroutine(self._driver())
         self.start_coroutine(self._monitor())
         self.start_coroutine(self._checker())
-        await Combine(*self.coroutines, RisingEdge(self._dut.finish))
-
+        await Combine(*self.coroutines, FallingEdge(self._dut.finish))
         self.clear_coroutines()
     
     def _set_register(self) -> None:
@@ -123,33 +119,36 @@ class ReshaperTester(BaseTester):
         self.start_coroutine(self._mem_read())
 
     async def _monitor(self) -> None:
-        for addr in range(self._cfg._output_mem.depth):
+        for _ in range(self._cfg._output_mem.depth):
             await RisingEdge(self._dut.clk)
             while not self._dut.wdata_vld.value:
                 await RisingEdge(self._dut.clk)
-            self._mon_port.put_nowait(self._dut.wdata.value.binstr)
+            addr = self._dut.waddr.value.integer - self._cfg.waddr_base
+            data = self._dut.wdata.value.binstr
+            self._mon_port.put_nowait((addr, data))
 
     async def _checker(self) -> None:
-        for addr, ref_data in enumerate(self._cfg._output_mem):
-            data = await self._mon_port.get()
-            vld_byte = self._cfg._output_mem.get_vld_byte(addr)
-
-            compare_datas = {
-                "actual": {"addr": addr, "data": hex(int(data[-vld_byte*8:], 2))},
-                "expected": {"addr": addr, "data": hex(int(ref_data[-vld_byte*8:], 2))}
-            }
-            if compare_datas["actual"] != compare_datas["expected"]:
+        for _ in range(self._cfg._output_mem.depth):
+            addr, data = await self._mon_port.get()
+            mask = self._cfg._output_mem.get_mask(addr)
+            actual = hex(np.bitwise_and(int(data, 2), int(mask, 2)))
+            expected = hex(np.bitwise_and(int(self._cfg._output_mem[addr], 2), int(mask, 2)))
+            if actual != expected:
                 self._cfg._input_mem.dump("input.hex")
                 self._cfg._output_mem.dump("ref.hex")
+                compare_datas = {
+                    "actual": {"addr": addr, "data": actual},
+                    "expected": {"addr": addr, "data": expected}
+                }
                 assert 0, "\n" + tabulate(pd.DataFrame(compare_datas), headers="keys", tablefmt="pretty")
-    
+
     async def _mem_read(self):
         rdfifo = []
         for _ in range(self._cfg._input_mem.depth):
             while True:
                 await RisingEdge(self._dut.clk)
                 if self._dut.raddr_vld.value:
-                    raddr = self._dut.raddr.value - self._cfg.raddr_base
+                    raddr = self._dut.raddr.value.integer - self._cfg.raddr_base
                     rdfifo.append({"addr": raddr, "delay":self._mem_rd_delay})
                 for i in rdfifo:
                     i["delay"] -= 1
@@ -170,7 +169,6 @@ async def normal(dut):
     clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
     cfg = RandomConfig()
     tester = ReshaperTester(dut, cfg)
-
     tester.init_phase()
     await tester.reset_phase()
 

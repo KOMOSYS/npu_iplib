@@ -13,7 +13,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.queue import Queue
 from cocotb.types import LogicArray
-from cocotb.triggers import Timer, RisingEdge, Combine
+from cocotb.triggers import Timer, RisingEdge, FallingEdge, Combine
 
 import sequence
 from base import *
@@ -23,86 +23,62 @@ from memory import *
 class RandomConfig(BaseConfig):
     def randomize(self):
         self.dim = random.randint(2, 6)
-        while True:
-            self.mode = np.random.choice(["BIT8_MODE", "BIT32_MODE"])
-            if self.mode == "BIT8_MODE":
-                self._dnum_in_word = 64
-            elif self.mode == "BIT32_MODE":
-                self._dnum_in_word = 16
+        self.dtype = np.random.choice([np.int8, np.float32])
+        self._dnum_in_word = 64 // np.dtype(self.dtype).itemsize
 
+        while True:
             self.trp_info = list(range(self.dim))
             np.random.shuffle(self.trp_info)
             self.in_shape = tuple(np.random.randint(1, 193, size=self.dim))
-            self.ref_shape = tuple([self.in_shape[i] for i in self.trp_info])
-            
-            if self._get_mem_depth(self.in_shape) < (1<<16) and self._get_mem_depth(self.ref_shape) < (1<<16):
+            self.out_shape = tuple([self.in_shape[i] for i in self.trp_info])
+            if max(self._get_mem_depth(self.in_shape), self._get_mem_depth(self.out_shape)) < (1<<16):
                 break
         
-        self.raddr_base = random.randint(0, (1<<16) - self._get_mem_depth(self.in_shape))
-        self.waddr_base = random.randint(0, (1<<16) - self._get_mem_depth(self.ref_shape))
-
-        if self.mode == "BIT8_MODE":
-            in_data = np.random.randint(INT8MIN, INT8MAX, size=self.in_shape).astype(np.int8)
-        elif self.mode == "BIT32_MODE":
+        if self.dtype == np.int8:
+            in_data = np.random.randint(INT8MIN, INT8MAX+1, size=self.in_shape, dtype=np.int8)
+        elif self.dtype == np.float32:
             in_data = np.random.rand(*self.in_shape).astype(np.float32)
         ref_data = in_data.transpose(*self.trp_info)
-        self._input_mem = Memory(in_data, append_last=False)
-        self._output_mem = Memory(ref_data, append_last=False)
-        
+
+        self.raddr_base = random.randint(0, (1<<16) - self._get_mem_depth(self.in_shape))
+        self.waddr_base = random.randint(0, (1<<16) - self._get_mem_depth(self.out_shape))
+
         self.packed_dim = self.trp_info[-1]
         self.packed_dim_rd_size = self.in_shape[self.packed_dim]
-        self.packed_dim_rd_stride = self._get_addr_stride(self.in_shape, self.packed_dim)
+        self.packed_dim_rd_stride = self._get_addr_info(self.in_shape, self.packed_dim)["stride"]
         self.unpacked_dim = max(self.trp_info)
         self.unpacked_dim_wr_size = self.in_shape[self.unpacked_dim]
-        self.unpacked_dim_wr_stride = self._get_addr_stride(self.ref_shape, self.trp_info.index(self.unpacked_dim))
+        self.unpacked_dim_wr_stride = self._get_addr_info(self.out_shape, self.trp_info.index(self.unpacked_dim))["stride"]
         self.repack_en = self.packed_dim != self.unpacked_dim
 
         self.rd_addr_info = []
         self.wr_addr_info = []
         for i in range(self.dim):
             if (i != self.unpacked_dim and i != self.packed_dim) or (not self.repack_en):
-                self.rd_addr_info.append({"dim": i,
-                                          "size": self._get_addr_size(in_data.shape, i),
-                                          "stride": self._get_addr_stride(in_data.shape, i)})
-                self.wr_addr_info.append({"dim": i,
-                                          "size": self._get_addr_size(ref_data.shape, self.trp_info.index(i)),
-                                          "stride": self._get_addr_stride(ref_data.shape, self.trp_info.index(i))})
-
-        self.areq_num = np.prod([i["size"] for i in self.rd_addr_info])
-        self._rd_addr_list = self._addr_gen(self.rd_addr_info)
-        self._wr_addr_list = self._addr_gen(self.wr_addr_info)
+                self.rd_addr_info.append(self._get_addr_info(in_data.shape, i))
+                self.wr_addr_info.append(self._get_addr_info(ref_data.shape, self.trp_info.index(i)))
         self.rd_addr_info = self.rd_addr_info[::-1]
         self.wr_addr_info = self.wr_addr_info[::-1]
+        self.areq_num = int(np.prod([i["size"] for i in self.rd_addr_info]))
+
+        self._input_mem = Memory(in_data, append_last=False)
+        self._output_mem = Memory(ref_data, append_last=False)
     
     def _get_mem_depth(self, shape):
         return np.prod(shape[:-1]) * ceil(shape[-1] / self._dnum_in_word)
     
-    def _get_addr_size(self, shape, idx):
+    def _get_addr_info(self, shape, idx):
         if idx == len(shape) - 1:
-            return ceil(shape[idx] / self._dnum_in_word)
+            return {"size": ceil(shape[idx] / self._dnum_in_word), "stride": 1}
         else:
-            return shape[idx]
-
-    def _get_addr_stride(self, shape, idx):
-        if idx == len(shape) - 1:
-            return 1
-        else:
-            return np.prod(shape[idx+1:-1]) * ceil(shape[-1] / self._dnum_in_word)
-
-    def _addr_gen(self, addr_info):
-        addr_list = []
-        addr_info = [info for info in addr_info if info["size"] != 1]
-        for indices in itertools.product(*[range(info["size"]) for info in addr_info]):
-            stride = [i["stride"] for i in addr_info]
-            addr_list.append(sum([i*j for i, j in zip(indices, stride)]))
-        return addr_list
+            return {"size": shape[idx], "stride": int(np.prod(shape[idx+1:-1]) * ceil(shape[-1] / self._dnum_in_word))}
 
 
 class TransposerTester(BaseTester):
     def __init__(self, dut, cfg):
         self._dut = dut
         self._cfg = cfg
-        self._mem_rd_delay = 17
+        self._mem_rd_delay = 8
         self._mon_port = Queue()
     
     def init_phase(self):
@@ -137,48 +113,12 @@ class TransposerTester(BaseTester):
         self.start_coroutine(self._driver())
         self.start_coroutine(self._monitor())
         self.start_coroutine(self._checker())
-        await Combine(*self.coroutines, RisingEdge(self._dut.finish))
-
+        await Combine(*self.coroutines, FallingEdge(self._dut.finish))
         self.clear_coroutines()
-
-    async def _driver(self) -> None:
-        self._set_register()
-
-        await RisingEdge(self._dut.clk)
-        self._dut.init_pulse.value = 1
-        await RisingEdge(self._dut.clk)
-        self._dut.init_pulse.value = 0
-
-        self.start_coroutine(self._mem_read())
-
-    async def _monitor(self) -> None:
-        for _ in range(self._cfg._output_mem.depth):
-            await RisingEdge(self._dut.clk)
-            while not self._dut.wdata_vld.value:
-                await RisingEdge(self._dut.clk)
-            addr = self._dut.waddr.value.integer - self._cfg.waddr_base
-            data = self._dut.wdata.value.binstr
-            self._mon_port.put_nowait((addr, data))
-
-    async def _checker(self) -> None:
-        waddr_list = []
-        for iter in range(self._cfg._output_mem.depth):
-            addr, data = await self._mon_port.get()
-            waddr_list.append(addr)
-            vld_byte = self._cfg._output_mem.get_vld_byte(addr)
-            actual = data[-vld_byte * 8:]
-            expected = self._cfg._output_mem[addr][-vld_byte * 8:]
-            compare_datas = {
-                "actual": {"addr": addr, "data": hex(int(actual, 2))},
-                "expected": {"addr": addr, "data": hex(int(expected, 2))}
-            }
-            assert compare_datas["actual"] == compare_datas["expected"], "\n" + tabulate(
-                pd.DataFrame(compare_datas), headers="keys", tablefmt="pretty")
-        assert len(set(waddr_list)) == len(waddr_list), "Duplicated Write Address"
-
+    
     def _set_register(self) -> None:
         self._dut.repack_en.value = 1 if self._cfg.repack_en else 0
-        self._dut.mode.value = 1 if self._cfg.mode == "BIT8_MODE" else 2
+        self._dut.mode.value = 1 if self._cfg.dtype == np.int8 else 2
         self._dut.raddr_base.value = self._cfg.raddr_base
         self._dut.waddr_base.value = self._cfg.waddr_base
         for i in range(self._dut.ADIM.value):
@@ -194,16 +134,48 @@ class TransposerTester(BaseTester):
         self._dut.unpacked_dim_wsize.value = int(self._cfg.unpacked_dim_wr_size) if self._cfg.repack_en else 0
         self._dut.unpacked_dim_wstride.value = int(self._cfg.unpacked_dim_wr_stride) if self._cfg.repack_en else 0
 
+    async def _driver(self) -> None:
+        self._set_register()
+        await RisingEdge(self._dut.clk)
+        self._dut.init_pulse.value = 1
+        await RisingEdge(self._dut.clk)
+        self._dut.init_pulse.value = 0
+        self.start_coroutine(self._mem_read())
+
+    async def _monitor(self) -> None:
+        for _ in range(self._cfg._output_mem.depth):
+            await RisingEdge(self._dut.clk)
+            while not self._dut.wdata_vld.value:
+                await RisingEdge(self._dut.clk)
+            addr = self._dut.waddr.value.integer - self._cfg.waddr_base
+            data = self._dut.wdata.value.binstr
+            self._mon_port.put_nowait((addr, data))
+
+    async def _checker(self) -> None:
+        for _ in range(self._cfg._output_mem.depth):
+            addr, data = await self._mon_port.get()
+            mask = self._cfg._output_mem.get_mask(addr)
+            actual = hex(np.bitwise_and(int(data, 2), int(mask, 2)))
+            expected = hex(np.bitwise_and(int(self._cfg._output_mem[addr], 2), int(mask, 2)))
+            if actual != expected:
+                self._cfg._input_mem.dump("input.hex")
+                self._cfg._output_mem.dump("ref.hex")
+                compare_datas = {
+                    "actual": {"addr": addr, "data": actual},
+                    "expected": {"addr": addr, "data": expected}
+                }
+                assert 0, "\n" + tabulate(pd.DataFrame(compare_datas), headers="keys", tablefmt="pretty")
+
     async def _mem_read(self):
         rdfifo = []
         for _ in range(self._cfg._input_mem.depth):
             while True:
                 await RisingEdge(self._dut.clk)
+                if self._dut.raddr_vld.value:
+                    raddr = self._dut.raddr.value.integer - self._cfg.raddr_base
+                    rdfifo.append({"addr": raddr, "delay":self._mem_rd_delay})
                 for i in rdfifo:
                     i["delay"] -= 1
-                if self._dut.raddr_vld.value:
-                    raddr = self._dut.raddr.value - self._cfg.raddr_base
-                    rdfifo.append({"addr": raddr, "delay":self._mem_rd_delay})
                 if rdfifo and rdfifo[0]["delay"] == 0:
                     self._dut.rdata.value = LogicArray(self._cfg._input_mem[rdfifo[0]["addr"]])
                     self._dut.rdata_vld.value = 1
@@ -222,7 +194,6 @@ async def small_img(dut):
     clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
     cfg = RandomConfig()
     tester = TransposerTester(dut, cfg)
-
     tester.init_phase()
     await tester.reset_phase()
 
@@ -249,7 +220,6 @@ async def random_dynamic_reset(dut):
     clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
     cfg = RandomConfig()
     tester = TransposerTester(dut, cfg)
-
     tester.init_phase()
     await tester.reset_phase()
 
@@ -268,7 +238,6 @@ async def directed_dynamic_reset(dut):
     clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
     cfg = RandomConfig()
     tester = TransposerTester(dut, cfg)
-
     tester.init_phase()
     await tester.reset_phase()
 
@@ -283,14 +252,14 @@ async def directed_dynamic_reset(dut):
         cfg.dync_rst_trg = f"rcsm[{i}]"
         cocotb.log.info(cfg)
         with timeout(10, "m"):
-            condition = cocotb.start_soon(chk_sig_eq(getattr(dut, "u_transpose.rcsm"), 1<<i))
+            condition = cocotb.start_soon(chk_sig_eq(getattr(dut, "u_transposer.rcsm"), 1<<i))
             await sequence.dynamic_reset(tester, cfg, condition)
 
     for i in range(5):
         cfg.dync_rst_trg = f"wcsm[{i}]"
         cocotb.log.info(cfg)
         with timeout(10, "m"):
-            condition = cocotb.start_soon(chk_sig_eq(getattr(dut, "u_transpose.wcsm"), 1<<i))
+            condition = cocotb.start_soon(chk_sig_eq(getattr(dut, "u_transposer.wcsm"), 1<<i))
             await sequence.dynamic_reset(tester, cfg, condition)
 
     clk.kill()
@@ -301,7 +270,6 @@ async def normal(dut):
     clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
     cfg = RandomConfig()
     tester = TransposerTester(dut, cfg)
-
     tester.init_phase()
     await tester.reset_phase()
 

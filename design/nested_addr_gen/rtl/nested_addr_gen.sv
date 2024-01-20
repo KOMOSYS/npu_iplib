@@ -83,13 +83,13 @@ always_ff@(posedge clk or negedge reset_n) begin
 	else              addr_vld <= 0;
 end
 always_comb begin
-	cur_addr = base_addr;
+	cur_addr = 0;
 	for(int i=0; i<DEPTH; i++)
 		cur_addr = cur_addr + addr_cnt[i];
 end
 always_ff@(posedge clk or negedge reset_n) begin
 	if(~reset_n)      addr <= 0;
-	else if(addr_req) addr <= cur_addr;
+	else if(addr_req) addr <= base_addr + cur_addr;
 end
 for(genvar i=0; i<DEPTH; i++) begin
 	always_ff@(posedge clk or negedge reset_n) begin

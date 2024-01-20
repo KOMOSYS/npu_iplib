@@ -16,7 +16,7 @@ module rshp_fifo #(parameter DW=512)(
     output reg ffrempty
 );
 
-parameter BUFFW = DW*2;
+localparam BUFFW = DW*2;
 
 wire [BUFFW+DW-1:0] wdata_tmp;
 wire [BUFFW-1:0] wdata;

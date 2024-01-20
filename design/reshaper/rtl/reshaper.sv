@@ -26,6 +26,8 @@ module reshaper #(parameter AW=16, DW=512, ADIM=6, MEM_DELAY=8)(
 );
 localparam RDFFD = MEM_DELAY + 3;
 
+reg run;
+
 wire inc_rreqcnt;
 wire clr_rreqcnt;
 reg [AW-1:0] rreqcnt;
@@ -65,6 +67,12 @@ wire clr_wreqcnt;
 reg [AW-1:0] wreqcnt;
 reg [AW-1:0] wreqcnt_max;
 
+always_ff@(posedge clk or negedge reset_n) begin 
+    if(~reset_n)        run <= 0;
+    else if(init_pulse) run <= 1;
+    else if(finish)     run <= 0;
+end
+
 assign inc_rreqcnt = raddr_req & (rreqcnt < rreqcnt_max);
 assign clr_rreqcnt = finish;
 always_ff@(posedge clk or negedge reset_n) begin 
@@ -85,7 +93,7 @@ always_ff@(posedge clk or negedge reset_n) begin
     else if(rdata_vld)             pend_rreqcnt <= pend_rreqcnt - 1;
 end
 
-assign raddr_req = ((rdffvcnt + pend_rreqcnt) < RDFFD) & (rreqcnt < rreqcnt_max) & ~init_pulse;
+assign raddr_req = ((rdffvcnt + pend_rreqcnt) < RDFFD) & (rreqcnt < rreqcnt_max) & run;
 nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) raddr_gen(
     .clk
 ,   .reset_n
@@ -169,7 +177,7 @@ rshp_fifo #(.DW(DW)) rshp_fifo(
 ,   .ffrempty(rshpffrempty)
 );
 
-assign waddr_req = rshpffrreq & ~init_pulse;
+assign waddr_req = rshpffrvld & run;
 nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) waddr_gen(
     .clk
 ,   .reset_n
