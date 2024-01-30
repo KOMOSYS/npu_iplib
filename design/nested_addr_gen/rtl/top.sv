@@ -1,4 +1,4 @@
-module top #(parameter DEPTH=4, AW=32) (
+module top #(parameter DEPTH=6, AW=16) (
 	input               clk,
 	input               reset_n,
 	input               init_pulse,

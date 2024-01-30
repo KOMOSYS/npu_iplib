@@ -14,8 +14,8 @@ from base import *
 
 class RandomConfig(BaseConfig):
     def randomize(self):
-        addr_width = 32
-        self.depth = random.randint(1, 4)
+        addr_width = 16
+        self.depth = random.randint(1, 6)
 
         while True:
             self.bpad = np.array([random.randrange(0, 3) for _ in range(self.depth)])
@@ -75,7 +75,7 @@ class NestedAddrGenTester(BaseTester):
         self._dut.base.value = self._cfg.base_addr
         for i in range(self._dut.DEPTH.value):
             self._dut.pad_before[i].value = int(self._cfg.bpad[i]) if i < self._cfg.depth else 0
-            self._dut.size[i].value = int(self._cfg.size[i]) if i < self._cfg.depth else 0
+            self._dut.size[i].value = int(self._cfg.size[i]) if i < self._cfg.depth else 1
             self._dut.pad_after[i].value = int(self._cfg.apad[i]) if i < self._cfg.depth else 0
             self._dut.stride[i].value = int(self._cfg.stride[i]) if i < self._cfg.depth else 0
 

@@ -12,6 +12,7 @@ from cocotb.queue import Queue
 from cocotb.types import LogicArray
 from cocotb.triggers import Timer, RisingEdge, FallingEdge, Combine
 
+import sequence
 from base import *
 from constant import *
 from memory import *
@@ -26,7 +27,7 @@ class RandomConfig(BaseConfig):
             self.in_shape = tuple(np.random.randint(1, 193, size=self.dim))
             self.out_shape = list(self.in_shape)
             np.random.shuffle(self.out_shape)
-            if max(self._get_mem_depth(self.in_shape), self._get_mem_depth(self.out_shape)) < (1<<16) and self.in_shape[-1] != self.out_shape[-1]:
+            if max(self._get_mem_depth(self.in_shape), self._get_mem_depth(self.out_shape)) < (1<<16):
                 break
 
         if self.dtype == np.int8:
@@ -35,17 +36,17 @@ class RandomConfig(BaseConfig):
             in_data = np.random.rand(*self.in_shape).astype(np.float32)
         ref_data = in_data.reshape(*self.out_shape)
 
-        self.raddr_base = random.randint(0, (1<<16) - self._get_mem_depth(self.in_shape))
-        self.waddr_base = random.randint(0, (1<<16) - self._get_mem_depth(self.out_shape))
+        self._input_mem = Memory(in_data, append_last=False)
+        self._output_mem = Memory(ref_data, append_last=False)
+
+        self.raddr_base = random.randint(0, (1<<16) - self._input_mem.depth)
+        self.waddr_base = random.randint(0, (1<<16) - self._output_mem.depth)
 
         self.rd_addr_info = [self._get_addr_info(in_data.shape, i) for i in range(in_data.ndim)][::-1]
         self.wr_addr_info = [self._get_addr_info(ref_data.shape, i) for i in range(ref_data.ndim)][::-1]
 
         self.rdata_size = in_data.shape[-1] * np.dtype(self.dtype).itemsize
         self.wdata_size = ref_data.shape[-1] * np.dtype(self.dtype).itemsize
-
-        self._input_mem = Memory(in_data, append_last=False)
-        self._output_mem = Memory(ref_data, append_last=False)
     
     def _get_mem_depth(self, shape):
         return np.prod(shape[:-1]) * ceil(shape[-1] / self._dnum_in_word)
@@ -104,9 +105,15 @@ class ReshaperTester(BaseTester):
             if i < len(self._cfg.rd_addr_info):
                 self._dut.raddr_size[i].value = int(self._cfg.rd_addr_info[i]["size"])
                 self._dut.raddr_stride[i].value = int(self._cfg.rd_addr_info[i]["stride"])
+            else:
+                self._dut.raddr_size[i].value = 1
+                self._dut.raddr_stride[i].value = 0
             if i < len(self._cfg.wr_addr_info):
                 self._dut.waddr_size[i].value = int(self._cfg.wr_addr_info[i]["size"])
                 self._dut.waddr_stride[i].value = int(self._cfg.wr_addr_info[i]["stride"])
+            else:
+                self._dut.waddr_size[i].value = 1
+                self._dut.waddr_stride[i].value = 0
         self._dut.rdata_size.value = int(self._cfg.rdata_size)
         self._dut.wdata_size.value = int(self._cfg.wdata_size)
 
@@ -131,8 +138,8 @@ class ReshaperTester(BaseTester):
         for _ in range(self._cfg._output_mem.depth):
             addr, data = await self._mon_port.get()
             mask = self._cfg._output_mem.get_mask(addr)
-            actual = hex(np.bitwise_and(int(data, 2), int(mask, 2)))
-            expected = hex(np.bitwise_and(int(self._cfg._output_mem[addr], 2), int(mask, 2)))
+            actual = hex(int(data, 2) & int(mask, 2))
+            expected = hex(int(self._cfg._output_mem[addr], 2) & int(mask, 2))
             if actual != expected:
                 self._cfg._input_mem.dump("input.hex")
                 self._cfg._output_mem.dump("ref.hex")
@@ -162,6 +169,47 @@ class ReshaperTester(BaseTester):
 
 random_seed = int(os.getenv("RANDOM_SEED")) if os.getenv("RANDOM_SEED") is not None else 1
 max_iter = int(os.getenv("MAX_ITER")) if os.getenv("MAX_ITER") is not None else 100
+
+#@cocotb.test()
+@intr_handler
+async def small_img(dut):
+    clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    cfg = RandomConfig()
+    tester = ReshaperTester(dut, cfg)
+    tester.init_phase()
+    await tester.reset_phase()
+
+    for iter in range(max_iter):
+        cocotb.log.info(f"Iteration {iter}")
+        set_seed(random_seed+iter)
+        cfg.unfreeze("dim", "in_shape")
+        cfg.dim = random.randint(2, 6)
+        cfg.in_shape = tuple(np.random.randint(1, 4, size=cfg.dim))
+        cfg.freeze("dim", "in_shape")
+        cfg.randomize()
+        cocotb.log.info(cfg)
+
+        with timeout(10, "m"):
+            await tester.main_phase()
+    clk.kill()
+
+#@cocotb.test()
+@intr_handler
+async def random_dynamic_reset(dut):
+    clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
+    cfg = RandomConfig()
+    tester = ReshaperTester(dut, cfg)
+    tester.init_phase()
+    await tester.reset_phase()
+
+    for iter in range(max_iter):
+        cocotb.log.info(f"Iteration {iter}")
+        set_seed(random_seed+iter)
+        cfg.randomize()
+        cocotb.log.info(cfg)
+        with timeout(10, "m"):
+            await sequence.dynamic_reset(tester, cfg)
+    clk.kill()
 
 @cocotb.test()
 @intr_handler

@@ -43,7 +43,6 @@ class BaseConfig:
     def __str__(self):
         cfg_dict = {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
         cfg_df = pd.DataFrame({"config": cfg_dict})
-        cfg_df = cfg_df.reindex(cfg_dict.keys())
         return tabulate(cfg_df, headers="keys", tablefmt="pretty")
 
 

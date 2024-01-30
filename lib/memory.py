@@ -42,7 +42,11 @@ class Memory:
             return self._width // 8
     
     def dump(self, fpath="./dump.hex"):
-        Path(fpath).write_text("\n".join([format(int(self[i], 2), f"0{self._width // 8}x") for i in range(self.depth)]))
+        Path(fpath).write_text("\n".join([format(int(self[i], 2), f"0{self._width // 4}x") for i in range(self.depth)]))
+
+    @property
+    def mem(self):
+        return self._mem
 
     @property
     def depth(self):

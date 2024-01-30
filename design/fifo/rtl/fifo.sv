@@ -1,20 +1,20 @@
 module fifo #(parameter FD=8, DW=8)(
     input clk,
     input reset_n,
+    output reg ffwfull,
     input ffwreq,
     input [DW-1:0] ffwdata,
+    output reg ffrempty,
     input ffrreq,
     output reg [DW-1:0] ffrdata,
     output reg ffrvld,
-    output reg [$clog2(FD):0] ffvcnt,
-    output reg ffwfull,
-    output reg ffrempty
+    output reg [$clog2(FD):0] ffvcnt
 );
 
 reg [FD-1:0][DW-1:0] buffer;
 reg [$clog2(FD)-1:0] wptr, rptr;
 
-assign ffwfull = ffvcnt >= FD;
+assign ffwfull = ffvcnt == FD;
 assign ffrempty = ffvcnt == 0;
 
 always_ff@(posedge clk or negedge reset_n) begin

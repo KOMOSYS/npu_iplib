@@ -5,19 +5,17 @@ module transposer #(parameter AW=16, BUFFD=64, ADIM=6)(
     input repack_en,
     input [1:0] mode,
 
+    input [AW-1:0] rreq_num,
     input [AW-1:0] raddr_base,
     input [AW-1:0] raddr_size[ADIM],
     input [AW-1:0] raddr_stride[ADIM],
+    input [AW-1:0] wreq_num,
     input [AW-1:0] waddr_base,
     input [AW-1:0] waddr_size[ADIM],
     input [AW-1:0] waddr_stride[ADIM],
 
-    input [AW-1:0] areq_num,
-
-    input [AW-1:0] packed_dim_rsize,
-    input [AW-1:0] packed_dim_rstride,
-    input [AW-1:0] unpacked_dim_wsize,
-    input [AW-1:0] unpacked_dim_wstride,
+    input [AW-1:0] packed_dim_size,
+    input [AW-1:0] unpacked_dim_size,
 
     output reg [AW-1:0] raddr,
     output reg raddr_vld,
@@ -34,88 +32,70 @@ typedef enum logic [1:0] {
     BIT32_MODE = 2'b10
 } mode_t;
 
-typedef enum logic [4:0] {
-    R_IDLE  = 5'b00001,
-    R_SET   = 5'b00010,
-    R_WAIT  = 5'b00100,
-    R_READ  = 5'b01000,
-    R_END   = 5'b10000
+typedef enum logic [3:0] {
+    R_IDLE  = 4'b0001,
+    R_WAIT  = 4'b0010,
+    R_READ  = 4'b0100,
+    R_END   = 4'b1000
 } rstate_t;
 
-typedef enum logic [4:0] {
-    W_IDLE  = 5'b00001,
-    W_SET   = 5'b00010,
-    W_WAIT  = 5'b00100,
-    W_WRITE = 5'b01000,
-    W_END   = 5'b10000
+typedef enum logic [3:0] {
+    W_IDLE  = 4'b0001,
+    W_WAIT  = 4'b0010,
+    W_WRITE = 4'b0100,
+    W_END   = 4'b1000
 } wstate_t;
 
 rstate_t rcsm, rnsm;
+wire inc_rcnt;
+wire clr_rcnt;
+reg [AW-1:0] rcnt;
+reg [AW-1:0] rcnt_max;
 
-wire inc_arreqcnt;
-wire clr_arreqcnt;
-reg [AW-1:0] arreqcnt;
-reg [AW-1:0] arreqcnt_max;
-
-wire inc_rcnt[2];
-wire clr_rcnt[2];
-reg [AW-1:0] rcnt[2];
-reg [AW-1:0] rcnt_max[2];
+wire raddr_req;
+wire [AW-1:0] raddr_bpad[ADIM];
+wire [AW-1:0] raddr_apad[ADIM];
+wire inc_rreqcnt;
+wire clr_rreqcnt;
+reg [AW-1:0] rreqcnt;
+reg [AW-1:0] rreqcnt_max;
 
 wstate_t wcsm, wnsm;
+wire inc_wcnt;
+wire clr_wcnt;
+reg [AW-1:0] wcnt;
+reg [AW-1:0] wcnt_max;
 
-wire inc_awreqcnt;
-wire clr_awreqcnt;
-reg [AW-1:0] awreqcnt;
-reg [AW-1:0] awreqcnt_max;
+wire waddr_req;
+wire [AW-1:0] waddr_bpad[ADIM];
+wire [AW-1:0] waddr_apad[ADIM];
+wire inc_wreqcnt;
+wire clr_wreqcnt;
+reg [AW-1:0] wreqcnt;
+reg [AW-1:0] wreqcnt_max;
+reg lastwreq;
+reg lastwreq_d[2];
 
-wire inc_wcnt[2];
-wire clr_wcnt[2];
-reg [AW-1:0] wcnt[2];
-reg [AW-1:0] wcnt_max[2];
+reg ffwreqidx;
+wire inc_ffwreqcnt[2];
+wire clr_ffwreqcnt[2];
+reg [$clog2(BUFFD):0] ffwreqcnt[2];
+reg ffwvldidx;
+wire inc_ffwvldcnt[2];
+wire clr_ffwvldcnt[2];
+reg ffrreqidx;
+reg [$clog2(BUFFD):0] ffwvldcnt[2];
+wire ffwrdy[2];
+wire ffrrdy[2];
+wire ffinit[2];
+wire ffwreq[2];
+wire ffrreq[2];
+wire [BUFFD*8-1:0] ffwdata[2];
+wire [BUFFD*8-1:0] ffrdata[2];
+wire ffrvld[2];
+reg [BUFFD*8-1:0] ffdata;
 
-reg rreqidx;
-wire inc_rreqcnt[2];
-wire clr_rreqcnt[2];
-reg [$clog2(BUFFD):0] rreqcnt[2];
-reg rvldidx;
-wire inc_rvldcnt[2];
-wire clr_rvldcnt[2];
-reg [$clog2(BUFFD):0] rvldcnt[2];
-
-wire trpffwrdy[2];
-wire trpffrrdy[2];
-wire trpffwidx;
-reg trpffridx;
-wire trpffinit[2];
-wire trpffwreq[2];
-wire trpffrreq[2];
-wire [BUFFD*8-1:0] trpffwdata[2];
-wire [BUFFD*8-1:0] trpffrdata[2];
-wire trpffrvld[2];
-
-wire rbase_req;
-reg [AW-1:0] rbase;
-wire rbase_vld;
-reg [AW-1:0] packed_dim_rstride_cnt;
-reg [AW-1:0] unpacked_dim_rstride_cnt;
-
-wire wbase_req;
-reg [AW-1:0] wbase;
-wire wbase_vld;
-reg [AW-1:0] unpacked_dim_wstride_cnt;
-reg [AW-1:0] unpacked_dim_woffset;
-reg [AW-1:0] packed_dim_wstride_cnt;
-
-reg [AW-1:0] raddr_tmp;
-reg [AW-1:0] waddr_tmp;
-reg [BUFFD*8-1:0] rdata_tmp;
-
-always_ff@(posedge clk or negedge reset_n) begin
-    if (~reset_n)      finish <= 0;
-    else if(repack_en) finish <= (wcsm == W_END) & (wnsm == W_IDLE);
-    else               finish <= (wcsm == W_SET) & (wnsm == W_IDLE);
-end
+reg [BUFFD*8-1:0] rdata_d[2];
 
 always_ff@(posedge clk or negedge reset_n) begin
 	if (~reset_n) rcsm <= R_IDLE;
@@ -124,68 +104,67 @@ end
 always_comb begin
     case(rcsm)
         R_IDLE:
-            if(init_pulse)                                                      rnsm = R_SET;
-            else                                                                rnsm = R_IDLE;
-        R_SET:
-            if(repack_en)                                                       rnsm = R_WAIT;
-            else if(arreqcnt == (arreqcnt_max - 1))                             rnsm = R_IDLE;
-            else                                                                rnsm = R_SET;
+            if(init_pulse & repack_en)                                               rnsm = R_WAIT;
+            else if(init_pulse & ~repack_en)                                         rnsm = R_READ;
+            else                                                                     rnsm = R_IDLE;
         R_WAIT:
-            if(trpffwrdy[rreqidx])                                              rnsm = R_READ;
-            else                                                                rnsm = R_WAIT;
+            if(ffwrdy[ffwreqidx])                                                    rnsm = R_READ;
+            else                                                                     rnsm = R_WAIT;
         R_READ:
-            if(rcnt[0] == (rcnt_max[0] - 1))                                    rnsm = R_END;
-            else if((mode == BIT8_MODE) & (&rcnt[0][$clog2(BUFFD)-1:0]))        rnsm = R_END;
-            else if((mode == BIT32_MODE) & (&rcnt[0][$clog2(BUFFD/4)-1:0]))     rnsm = R_END;
-            else                                                                rnsm = R_READ;
+            if(~repack_en & (rreqcnt == (rreqcnt_max - 1)))                          rnsm = R_END;
+            else if(repack_en & (rcnt == (rcnt_max - 1)))                            rnsm = R_END;
+            else if(repack_en & (mode == BIT8_MODE) & (&rcnt[$clog2(BUFFD)-1:0]))    rnsm = R_END;
+            else if(repack_en & (mode == BIT32_MODE) & (&rcnt[$clog2(BUFFD/4)-1:0])) rnsm = R_END;
+            else                                                                     rnsm = R_READ;
         R_END:
-            if((rcnt[0] == rcnt_max[0]) & (rcnt[1] == (rcnt_max[1] - 1))) begin
-                if(arreqcnt == arreqcnt_max)                                    rnsm = R_IDLE;
-                else                                                            rnsm = R_SET;
-            end else                                                            rnsm = R_WAIT;
+            if(rreqcnt == rreqcnt_max)                                               rnsm = R_IDLE;
+            else                                                                     rnsm = R_WAIT;
         default:
-                                                                                rnsm = R_IDLE;
+                                                                                     rnsm = R_IDLE;
     endcase
 end
+assign inc_rcnt = repack_en & (rcsm == R_READ);
+assign clr_rcnt = repack_en & (rcsm == R_READ) & (rcnt == (rcnt_max - 1));
+always_ff@(posedge clk or negedge reset_n) begin 
+    if(~reset_n)        rcnt <= 0;
+    else if(init_pulse) rcnt <= 0;
+    else if(clr_rcnt)   rcnt <= 0;
+    else if(inc_rcnt)   rcnt <= rcnt + 1;
+end
+always_ff@(posedge clk or negedge reset_n) begin 
+    if(~reset_n)        rcnt_max <= 0;
+    else if(init_pulse) rcnt_max <= packed_dim_size;
+end
 
-assign inc_arreqcnt = rbase_req;
-assign clr_arreqcnt = rcsm == R_IDLE;
+assign raddr_req = rcsm == R_READ;
+for(genvar i=0; i<ADIM; i++) assign raddr_bpad[i] = 0;
+for(genvar i=0; i<ADIM; i++) assign raddr_apad[i] = 0;
+assign inc_rreqcnt = raddr_req;
+assign clr_rreqcnt = finish;
 always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)          arreqcnt <= 0;
-    else if(init_pulse)   arreqcnt <= 0;
-    else if(clr_arreqcnt) arreqcnt <= 0;
-    else if(inc_arreqcnt) arreqcnt <= arreqcnt + 1;
-end
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)        arreqcnt_max <= 0;
-    else if(init_pulse) arreqcnt_max <= areq_num;
-end
-
-assign inc_rcnt[0] = rcsm == R_READ;
-assign clr_rcnt[0] = (rcsm == R_END) & (rcnt[0] == rcnt_max[0]);
-assign inc_rcnt[1] = clr_rcnt[0];
-assign clr_rcnt[1] = clr_rcnt[0] & (rcnt[1] == rcnt_max[1] - 1);
-always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)         rcnt[0] <= 0;
-    else if(init_pulse)  rcnt[0] <= 0;
-    else if(clr_rcnt[0]) rcnt[0] <= 0;
-    else if(inc_rcnt[0]) rcnt[0] <= rcnt[0] + 1;
+    if(~reset_n)         rreqcnt <= 0;
+    else if(init_pulse)  rreqcnt <= 0;
+    else if(clr_rreqcnt) rreqcnt <= 0;
+    else if(inc_rreqcnt) rreqcnt <= rreqcnt + 1;
 end
 always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)         rcnt[1] <= 0;
-    else if(init_pulse)  rcnt[1] <= 0;
-    else if(clr_rcnt[1]) rcnt[1] <= 0;
-    else if(inc_rcnt[1]) rcnt[1] <= rcnt[1] + 1;
+    if(~reset_n)         rreqcnt_max <= 0;
+    else if(init_pulse)  rreqcnt_max <= rreq_num;
 end
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)        rcnt_max[0] <= 0;
-    else if(init_pulse) rcnt_max[0] <= packed_dim_rsize;
-end
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                               rcnt_max[1] <= 0;
-    else if((mode == BIT8_MODE) & init_pulse)  rcnt_max[1] <= unpacked_dim_wsize[AW-1:$clog2(BUFFD)] + (|unpacked_dim_wsize[$clog2(BUFFD)-1:0]);
-    else if((mode == BIT32_MODE) & init_pulse) rcnt_max[1] <= unpacked_dim_wsize[AW-1:$clog2(BUFFD/4)] + (|unpacked_dim_wsize[$clog2(BUFFD/4)-1:0]);
-end
+nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) u_raddr_gen(
+    .clk
+,   .reset_n
+,   .init_pulse
+,   .addr_req(raddr_req)
+,   .base(raddr_base)
+,   .pad_before(raddr_bpad)
+,   .size(raddr_size)
+,   .pad_after(raddr_apad)
+,   .stride(raddr_stride)
+,   .addr(raddr)
+,   .addr_vld(raddr_vld)
+,   .pad_vld()
+);
 
 always_ff@(posedge clk or negedge reset_n) begin
 	if (~reset_n) wcsm <= W_IDLE;
@@ -194,236 +173,176 @@ end
 always_comb begin
     case(wcsm)
         W_IDLE:
-            if(init_pulse)                                                      wnsm = W_SET;
-            else                                                                wnsm = W_IDLE;
-        W_SET:
-            if(repack_en)                                                       wnsm = W_WAIT;
-            else if(awreqcnt == (awreqcnt_max - 1))                             wnsm = W_IDLE;
-            else                                                                wnsm = W_SET;
+            if(init_pulse & repack_en)                                               wnsm = W_WAIT;
+            else if(init_pulse & ~repack_en)                                         wnsm = W_WRITE;
+            else                                                                     wnsm = W_IDLE;
         W_WAIT:
-            if(trpffrrdy[trpffridx])                                            wnsm = W_WRITE;
-            else                                                                wnsm = W_WAIT;
+            if(ffrrdy[ffrreqidx])                                                    wnsm = W_WRITE;
+            else                                                                     wnsm = W_WAIT;
         W_WRITE:
-            if(wcnt[0] == (wcnt_max[0] - 1))                                    wnsm = W_END;
-            else if((mode == BIT8_MODE) & (&wcnt[0][$clog2(BUFFD)-1:0]))        wnsm = W_END;
-            else if((mode == BIT32_MODE) & (&wcnt[0][$clog2(BUFFD/4)-1:0]))     wnsm = W_END;
-            else                                                                wnsm = W_WRITE;
+            if(~repack_en & (wreqcnt == (wreqcnt_max - 1)))                          wnsm = W_END;
+            else if(repack_en & (wcnt == (wcnt_max - 1)))                            wnsm = W_END;
+            else if(repack_en & (mode == BIT8_MODE) & (&wcnt[$clog2(BUFFD)-1:0]))    wnsm = W_END;
+            else if(repack_en & (mode == BIT32_MODE) & (&wcnt[$clog2(BUFFD/4)-1:0])) wnsm = W_END;
+            else                                                                     wnsm = W_WRITE;
         W_END:
-            if((wcnt[0] == wcnt_max[0]) & (wcnt[1] == (wcnt_max[1] - 1))) begin
-                if(awreqcnt == awreqcnt_max)                                    wnsm = W_IDLE;
-                else                                                            wnsm = W_SET;
-            end else                                                            wnsm = W_WAIT;
+            if(wreqcnt == wreqcnt_max)                                               wnsm = W_IDLE;
+            else                                                                     wnsm = W_WAIT;
         default:
-                                                                                wnsm = W_IDLE;
+                                                                                     wnsm = W_IDLE;
     endcase
 end
-
-assign inc_awreqcnt = wbase_req;
-assign clr_awreqcnt = wcsm == W_IDLE;
+assign inc_wcnt = repack_en & (wcsm == W_WRITE);
+assign clr_wcnt = repack_en & (wcsm == W_WRITE) & (wcnt == (wcnt_max - 1));
 always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)          awreqcnt <= 0;
-    else if(init_pulse)   awreqcnt <= 0;
-    else if(clr_awreqcnt) awreqcnt <= 0;
-    else if(inc_awreqcnt) awreqcnt <= awreqcnt + 1;
-end
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)        awreqcnt_max <= 0;
-    else if(init_pulse) awreqcnt_max <= areq_num;
-end
-
-assign inc_wcnt[0] = wcsm == W_WRITE;
-assign clr_wcnt[0] = wcsm == W_END;
-assign inc_wcnt[1] = clr_wcnt[0];
-assign clr_wcnt[1] = clr_wcnt[0] & (wcnt[1] == wcnt_max[1] - 1);
-always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)         wcnt[0] <= 0;
-    else if(init_pulse)  wcnt[0] <= 0;
-    else if(clr_wcnt[0]) wcnt[0] <= 0;
-    else if(inc_wcnt[0]) wcnt[0] <= wcnt[0] + 1;
-end
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                                wcnt_max[0] <= 0;
-    else if(init_pulse)                         wcnt_max[0] <= unpacked_dim_wsize;
-    else if(wcsm == W_SET)                      wcnt_max[0] <= unpacked_dim_wsize;
-    else if((mode == BIT8_MODE) & clr_wcnt[1])  wcnt_max[0] <= (wcnt_max[0] < BUFFD) ? 0 : (wcnt_max[0] - BUFFD);
-    else if((mode == BIT32_MODE) & clr_wcnt[1]) wcnt_max[0] <= (wcnt_max[0] < (BUFFD/4)) ? 0 : (wcnt_max[0] - (BUFFD/4));
+    if(~reset_n)        wcnt <= 0;
+    else if(init_pulse) wcnt <= 0;
+    else if(clr_wcnt)   wcnt <= 0;
+    else if(inc_wcnt)   wcnt <= wcnt + 1;
 end
 always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)         wcnt[1] <= 0;
-    else if(init_pulse)  wcnt[1] <= 0;
-    else if(clr_wcnt[1]) wcnt[1] <= 0;
-    else if(inc_wcnt[1]) wcnt[1] <= wcnt[1] + 1;
-end
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                               wcnt_max[1] <= 0;
-    else if((mode == BIT8_MODE) & init_pulse)  wcnt_max[1] <= packed_dim_rsize[AW-1:$clog2(BUFFD)] + (|packed_dim_rsize[$clog2(BUFFD)-1:0]);
-    else if((mode == BIT32_MODE) & init_pulse) wcnt_max[1] <= packed_dim_rsize[AW-1:$clog2(BUFFD/4)] + (|packed_dim_rsize[$clog2(BUFFD/4)-1:0]);
+    if(~reset_n)        wcnt_max <= 0;
+    else if(init_pulse) wcnt_max <= unpacked_dim_size;
 end
 
+assign waddr_req = repack_en ? wcsm == W_WRITE : rdata_vld;
+for(genvar i=0; i<ADIM; i++) assign waddr_bpad[i] = 0;
+for(genvar i=0; i<ADIM; i++) assign waddr_apad[i] = 0;
+assign inc_wreqcnt = waddr_req;
+assign clr_wreqcnt = finish;
 always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)           rreqidx <= 0;
-    else if(init_pulse)    rreqidx <= 0;
-    else if(rcsm == R_END) rreqidx <= ~rreqidx;
+    if(~reset_n)         wreqcnt <= 0;
+    else if(init_pulse)  wreqcnt <= 0;
+    else if(clr_wreqcnt) wreqcnt <= 0;
+    else if(inc_wreqcnt) wreqcnt <= wreqcnt + 1;
 end
-for(genvar i=0; i<2; i++) begin
-    assign inc_rreqcnt[i] = (rreqidx == i) & (rcsm == R_READ);
-    assign clr_rreqcnt[i] = (trpffridx == i) & (wcsm == W_END);
-    always_ff@(posedge clk or negedge reset_n) begin 
-        if(~reset_n)            rreqcnt[i] <= 0;
-        else if(init_pulse)     rreqcnt[i] <= 0;
-        else if(clr_rreqcnt[i]) rreqcnt[i] <= 0;
-        else if(inc_rreqcnt[i]) rreqcnt[i] <= rreqcnt[i] + 1;
+always_ff@(posedge clk or negedge reset_n) begin 
+    if(~reset_n)         wreqcnt_max <= 0;
+    else if(init_pulse)  wreqcnt_max <= wreq_num;
+end
+always_ff@(posedge clk or negedge reset_n) begin 
+    if(~reset_n)                                        lastwreq <= 0;
+    else if(init_pulse)                                 lastwreq <= 0;
+    else if(waddr_req & (wreqcnt == (wreqcnt_max - 1))) lastwreq <= 1;
+    else                                                lastwreq <= 0;
+end
+always_ff@(posedge clk or negedge reset_n) begin
+    if(~reset_n)          lastwreq_d[0] <= 0;
+    else if(init_pulse)   lastwreq_d[0] <= 0;
+    else                  lastwreq_d[0] <= lastwreq;
+end
+for(genvar i=1; i<$size(lastwreq_d); i++) begin
+    always_ff@(posedge clk or negedge reset_n) begin
+        if(~reset_n)          lastwreq_d[i] <= 0;
+        else if(init_pulse)   lastwreq_d[i] <= 0;
+        else                  lastwreq_d[i] <= lastwreq_d[i-1];
     end
 end
+nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) u_waddr_gen(
+    .clk
+,   .reset_n
+,   .init_pulse
+,   .addr_req(waddr_req)
+,   .base(waddr_base)
+,   .pad_before(waddr_bpad)
+,   .size(waddr_size)
+,   .pad_after(waddr_apad)
+,   .stride(waddr_stride)
+,   .addr(waddr)
+,   .addr_vld(wdata_vld)
+,   .pad_vld()
+);
+
 always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)                rvldidx <= 0;
-    else if(init_pulse)         rvldidx <= 0;
-    else if(trpffrrdy[rvldidx]) rvldidx <= ~rvldidx;
+    if(~reset_n)           ffwreqidx <= 0;
+    else if(init_pulse)    ffwreqidx <= 0;
+    else if(rcsm == R_END) ffwreqidx <= ~ffwreqidx;
 end
 for(genvar i=0; i<2; i++) begin
-    assign inc_rvldcnt[i] = (rvldidx == i) & rdata_vld;
-    assign clr_rvldcnt[i] = (trpffridx == i) & (wcsm == W_END);
+    assign inc_ffwreqcnt[i] = (ffwreqidx == i) & (rcsm == R_READ);
+    assign clr_ffwreqcnt[i] = ffinit[i];
     always_ff@(posedge clk or negedge reset_n) begin 
-        if(~reset_n)            rvldcnt[i] <= 0;
-        else if(init_pulse)     rvldcnt[i] <= 0;
-        else if(clr_rvldcnt[i]) rvldcnt[i] <= 0;
-        else if(inc_rvldcnt[i]) rvldcnt[i] <= rvldcnt[i] + 1;
+        if(~reset_n)              ffwreqcnt[i] <= 0;
+        else if(init_pulse)       ffwreqcnt[i] <= 0;
+        else if(clr_ffwreqcnt[i]) ffwreqcnt[i] <= 0;
+        else if(inc_ffwreqcnt[i]) ffwreqcnt[i] <= ffwreqcnt[i] + 1;
     end
 end
 
-assign trpffwidx = rvldidx;
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)           trpffridx <= 0;
-    else if(init_pulse)    trpffridx <= 0;
-    else if(wcsm == W_END) trpffridx <= ~trpffridx;
+always_ff@(posedge clk or negedge reset_n) begin 
+    if(~reset_n)                                     ffwvldidx <= 0;
+    else if(init_pulse)                              ffwvldidx <= 0;
+    else if(ffrrdy[ffwvldidx] & ~ffrrdy[~ffwvldidx]) ffwvldidx <= ~ffwvldidx;
 end
+for(genvar i=0; i<2; i++) begin
+    assign inc_ffwvldcnt[i] = ffwreq[i];
+    assign clr_ffwvldcnt[i] = ffinit[i];
+    always_ff@(posedge clk or negedge reset_n) begin 
+        if(~reset_n)              ffwvldcnt[i] <= 0;
+        else if(init_pulse)       ffwvldcnt[i] <= 0;
+        else if(clr_ffwvldcnt[i]) ffwvldcnt[i] <= 0;
+        else if(inc_ffwvldcnt[i]) ffwvldcnt[i] <= ffwvldcnt[i] + 1;
+    end
+end
+
+always_ff@(posedge clk or negedge reset_n) begin
+    if(~reset_n)           ffrreqidx <= 0;
+    else if(init_pulse)    ffrreqidx <= 0;
+    else if(wcsm == W_END) ffrreqidx <= ~ffrreqidx;
+end
+
 for(genvar i=0; i<2; i++) begin: trp_fifo
-    assign trpffwrdy[i] = rreqcnt[i] == 0;
-    assign trpffrrdy[i] = (rreqcnt[i] == rvldcnt[i]) & (rvldcnt[i] != 0);
-    assign trpffinit[i] = (trpffridx == i) & (wcsm == W_END);
-    assign trpffwreq[i] = (trpffwidx == i) & repack_en & rdata_vld;
-    assign trpffrreq[i] = (trpffridx == i) & (wcsm == W_WRITE);
-    assign trpffwdata[i] = ((trpffwidx == i) & repack_en) ? rdata : 0;
+    assign ffwrdy[i] = ffwreqcnt[i] == 0;
+    assign ffrrdy[i] = (ffwreqcnt[i] != 0) & (ffwreqcnt[i] == ffwvldcnt[i]);
+
+    assign ffinit[i] = (ffrreqidx == i) & (wcsm == W_END);
+    assign ffwreq[i] = (ffwvldidx == i) & repack_en & rdata_vld;
+    assign ffrreq[i] = (ffrreqidx == i) & (wcsm == W_WRITE);
+    assign ffwdata[i] = rdata;
 
     trp_fifo#(.BUFFD(BUFFD)) u_trp_fifo (
         .clk
     ,   .reset_n
     ,   .mode
-    ,   .ffinit(trpffinit[i])
-    ,   .ffwreq(trpffwreq[i])
-    ,   .ffrreq(trpffrreq[i])
-    ,   .ffwdata(trpffwdata[i])
-    ,   .ffrdata(trpffrdata[i])
-    ,   .ffrvld(trpffrvld[i])
+    ,   .ffinit(ffinit[i])
+    ,   .ffwreq(ffwreq[i])
+    ,   .ffrreq(ffrreq[i])
+    ,   .ffwdata(ffwdata[i])
+    ,   .ffrdata(ffrdata[i])
+    ,   .ffrvld(ffrvld[i])
     );
 end
-
-assign rbase_req = rcsm == R_SET;
-nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) rbase_addr_gen(
-    .clk
-,   .reset_n
-,   .init_pulse
-,   .addr_req(rbase_req)
-,   .base(raddr_base)
-,   .pad_before('{ADIM{0}})
-,   .size(raddr_size)
-,   .pad_after('{ADIM{0}})
-,   .stride(raddr_stride)
-,   .addr(rbase)
-,   .addr_vld(rbase_vld)
-,   .pad_vld()
-);
 always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)            packed_dim_rstride_cnt <= 0;
-    else if(init_pulse)     packed_dim_rstride_cnt <= 0;
-    else if(rcsm == R_SET)  packed_dim_rstride_cnt <= 0;
-    else if(clr_rcnt[0])    packed_dim_rstride_cnt <= 0;
-    else if(rcsm == R_READ) packed_dim_rstride_cnt <= packed_dim_rstride_cnt + packed_dim_rstride;
-end
-always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)           unpacked_dim_rstride_cnt <= 0;
-    else if(init_pulse)    unpacked_dim_rstride_cnt <= 0;
-    else if(rcsm == R_SET) unpacked_dim_rstride_cnt <= 0;
-    else if(clr_rcnt[0])   unpacked_dim_rstride_cnt <= unpacked_dim_rstride_cnt + 1;
-end
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                          raddr <= 0;
-    else if(init_pulse)                   raddr <= 0;
-    else if(repack_en & (rcsm == R_READ)) raddr <= rbase + packed_dim_rstride_cnt + unpacked_dim_rstride_cnt;
-    else if(~repack_en & rbase_vld)       raddr <= rbase;
-end
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                          raddr_vld <= 0;
-    else if(init_pulse)                   raddr_vld <= 0;
-    else if(repack_en & (rcsm == R_READ)) raddr_vld <= 1;
-    else if(~repack_en & rbase_vld)       raddr_vld <= 1;
-    else                                  raddr_vld <= 0;
-end
-
-assign wbase_req = repack_en ? (wcsm == W_SET) : rdata_vld;
-nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) wbase_addr_gen(
-    .clk
-,   .reset_n
-,   .init_pulse
-,   .addr_req(wbase_req)
-,   .base(waddr_base)
-,   .pad_before('{ADIM{0}})
-,   .size(waddr_size)
-,   .pad_after('{ADIM{0}})
-,   .stride(waddr_stride)
-,   .addr(wbase)
-,   .addr_vld(wbase_vld)
-,   .pad_vld()
-);
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                                unpacked_dim_woffset <= 0;
-    else if(init_pulse)                         unpacked_dim_woffset <= 0;
-    else if(wcsm == W_SET)                      unpacked_dim_woffset <= 0;
-    else if(clr_wcnt[1] & (mode == BIT8_MODE))  unpacked_dim_woffset <= unpacked_dim_woffset + (unpacked_dim_wstride << $clog2(BUFFD));
-    else if(clr_wcnt[1] & (mode == BIT32_MODE)) unpacked_dim_woffset <= unpacked_dim_woffset + (unpacked_dim_wstride << $clog2(BUFFD/4));
-end
-always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)             unpacked_dim_wstride_cnt <= 0;
-    else if(init_pulse)      unpacked_dim_wstride_cnt <= 0;
-    else if(wcsm == W_SET)   unpacked_dim_wstride_cnt <= 0;
-    else if(wcsm == W_END)   unpacked_dim_wstride_cnt <= 0;
-    else if(wcsm == W_WRITE) unpacked_dim_wstride_cnt <= unpacked_dim_wstride_cnt + unpacked_dim_wstride;
-end
-always_ff@(posedge clk or negedge reset_n) begin 
-    if(~reset_n)           packed_dim_wstride_cnt <= 0;
-    else if(init_pulse)    packed_dim_wstride_cnt <= 0;
-    else if(wcsm == W_SET) packed_dim_wstride_cnt <= 0;
-    else if(clr_wcnt[1])   packed_dim_wstride_cnt <= 0;
-    else if(clr_wcnt[0])   packed_dim_wstride_cnt <= packed_dim_wstride_cnt + 1;
-end
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                              waddr_tmp <= 0;
-    else if(init_pulse)                       waddr_tmp <= 0;
-    else if(repack_en & trpffrreq[trpffridx]) waddr_tmp <= wbase + unpacked_dim_woffset + unpacked_dim_wstride_cnt + packed_dim_wstride_cnt;
-end
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                              waddr <= 0;
-    else if(init_pulse)                       waddr <= 0;
-    else if(repack_en & trpffrvld[trpffridx]) waddr <= waddr_tmp;
-    else if(~repack_en & wbase_vld)           waddr <= wbase;
+    if(~reset_n)        ffdata <= 0;
+    else if(init_pulse) ffdata <= 0;
+    else                ffdata <= ffrdata[ffrreqidx];
 end
 
 always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                    rdata_tmp <= 0;
-    else if(init_pulse)             rdata_tmp <= 0;
-    else if(~repack_en & rdata_vld) rdata_tmp <= rdata;
+    if(~reset_n)        rdata_d[0] <= 0;
+    else if(init_pulse) rdata_d[0] <= 0;
+    else if(~repack_en) rdata_d[0] <= rdata;
 end
+for(genvar i=1; i<$size(rdata_d); i++) begin
+    always_ff@(posedge clk or negedge reset_n) begin
+        if(~reset_n)        rdata_d[i] <= 0;
+        else if(init_pulse) rdata_d[i] <= 0;
+        else if(~repack_en) rdata_d[i] <= rdata_d[i-1];
+    end
+end
+
 always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                              wdata <= 0;
-    else if(init_pulse)                       wdata <= 0;
-    else if(repack_en & trpffrvld[trpffridx]) wdata <= trpffrdata[trpffridx];
-    else if(~repack_en & wbase_vld)           wdata <= rdata_tmp;
+    if(~reset_n)        wdata <= 0;
+    else if(init_pulse) wdata <= 0;
+    else if(repack_en)  wdata <= ffdata;
+    else                wdata <= rdata_d[$size(rdata_d)-1];
 end
-always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)                              wdata_vld <= 0;
-    else if(init_pulse)                       wdata_vld <= 0;
-    else if(repack_en & trpffrvld[trpffridx]) wdata_vld <= 1;
-    else if(~repack_en & wbase_vld)           wdata_vld <= 1;
-    else                                      wdata_vld <= 0;
+
+always_ff@(posedge clk or negedge reset_n) begin 
+    if(~reset_n)                             finish <= 0;
+    else if(init_pulse)                      finish <= 0;
+    else if(lastwreq_d[$size(lastwreq_d)-1]) finish <= 1;
+    else                                     finish <= 0;
 end
+
 endmodule: transposer

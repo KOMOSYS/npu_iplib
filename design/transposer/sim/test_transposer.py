@@ -31,7 +31,8 @@ class RandomConfig(BaseConfig):
             np.random.shuffle(self.trp_info)
             self.in_shape = tuple(np.random.randint(1, 193, size=self.dim))
             self.out_shape = tuple([self.in_shape[i] for i in self.trp_info])
-            if max(self._get_mem_depth(self.in_shape), self._get_mem_depth(self.out_shape)) < (1<<16):
+            if max(self._get_mem_depth(self.in_shape), self._get_mem_depth(self.out_shape)) < (1<<16) and \
+                (self.in_shape[-1] <= self._dnum_in_word or self.out_shape[-1] <= self._dnum_in_word):
                 break
         
         if self.dtype == np.int8:
@@ -44,22 +45,27 @@ class RandomConfig(BaseConfig):
         self.waddr_base = random.randint(0, (1<<16) - self._get_mem_depth(self.out_shape))
 
         self.packed_dim = self.trp_info[-1]
-        self.packed_dim_rd_size = self.in_shape[self.packed_dim]
-        self.packed_dim_rd_stride = self._get_addr_info(self.in_shape, self.packed_dim)["stride"]
+        self.packed_dim_size = self.in_shape[self.packed_dim]
         self.unpacked_dim = max(self.trp_info)
-        self.unpacked_dim_wr_size = self.in_shape[self.unpacked_dim]
-        self.unpacked_dim_wr_stride = self._get_addr_info(self.out_shape, self.trp_info.index(self.unpacked_dim))["stride"]
+        self.unpacked_dim_size = self.in_shape[self.unpacked_dim]
         self.repack_en = self.packed_dim != self.unpacked_dim
 
         self.rd_addr_info = []
         self.wr_addr_info = []
         for i in range(self.dim):
-            if (i != self.unpacked_dim and i != self.packed_dim) or (not self.repack_en):
+            if (i != self.unpacked_dim and i != self.packed_dim):
                 self.rd_addr_info.append(self._get_addr_info(in_data.shape, i))
                 self.wr_addr_info.append(self._get_addr_info(ref_data.shape, self.trp_info.index(i)))
+        
+        self.rd_addr_info.append(self._get_addr_info(in_data.shape, self.unpacked_dim))
+        self.rd_addr_info.append(self._get_addr_info(in_data.shape, self.packed_dim))
+        self.wr_addr_info.append(self._get_addr_info(ref_data.shape, self.trp_info.index(self.packed_dim)))
+        self.wr_addr_info.append(self._get_addr_info(ref_data.shape, self.trp_info.index(self.unpacked_dim)))
+
         self.rd_addr_info = self.rd_addr_info[::-1]
         self.wr_addr_info = self.wr_addr_info[::-1]
-        self.areq_num = int(np.prod([i["size"] for i in self.rd_addr_info]))
+        self.rreq_num = int(np.prod([i["size"] for i in self.rd_addr_info]))
+        self.wreq_num = int(np.prod([i["size"] for i in self.wr_addr_info]))
 
         self._input_mem = Memory(in_data, append_last=False)
         self._output_mem = Memory(ref_data, append_last=False)
@@ -87,19 +93,17 @@ class TransposerTester(BaseTester):
         self._dut.repack_en.value = 0
         self._dut.mode.value = 0
 
+        self._dut.rreq_num.value = 0
         self._dut.raddr_base.value = 0
-        self._dut.waddr_base.value = 0
         self._dut.raddr_size.value = [0] * self._dut.ADIM.value
         self._dut.raddr_stride.value = [0] * self._dut.ADIM.value
+        self._dut.wreq_num.value = 0
+        self._dut.waddr_base.value = 0
         self._dut.waddr_size.value = [0] * self._dut.ADIM.value
         self._dut.waddr_stride.value = [0] * self._dut.ADIM.value
-
-        self._dut.areq_num.value = 0
         
-        self._dut.packed_dim_rsize.value = 0
-        self._dut.packed_dim_rstride.value = 0
-        self._dut.unpacked_dim_wsize.value = 0
-        self._dut.unpacked_dim_wstride.value = 0
+        self._dut.packed_dim_size.value = 0
+        self._dut.unpacked_dim_size.value = 0
 
         self._dut.rdata.value = 0
         self._dut.rdata_vld.value = 0
@@ -119,20 +123,25 @@ class TransposerTester(BaseTester):
     def _set_register(self) -> None:
         self._dut.repack_en.value = 1 if self._cfg.repack_en else 0
         self._dut.mode.value = 1 if self._cfg.dtype == np.int8 else 2
+        self._dut.rreq_num.value = self._cfg.rreq_num
+        self._dut.wreq_num.value = self._cfg.wreq_num
         self._dut.raddr_base.value = self._cfg.raddr_base
         self._dut.waddr_base.value = self._cfg.waddr_base
         for i in range(self._dut.ADIM.value):
             if i < len(self._cfg.rd_addr_info):
                 self._dut.raddr_size[i].value = int(self._cfg.rd_addr_info[i]["size"])
                 self._dut.raddr_stride[i].value = int(self._cfg.rd_addr_info[i]["stride"])
+            else:
+                self._dut.raddr_size[i].value = 1
+                self._dut.raddr_stride[i].value = 0
             if i < len(self._cfg.wr_addr_info):
                 self._dut.waddr_size[i].value = int(self._cfg.wr_addr_info[i]["size"])
                 self._dut.waddr_stride[i].value = int(self._cfg.wr_addr_info[i]["stride"])
-        self._dut.areq_num.value = int(self._cfg.areq_num)
-        self._dut.packed_dim_rsize.value = int(self._cfg.packed_dim_rd_size) if self._cfg.repack_en else 0
-        self._dut.packed_dim_rstride.value = int(self._cfg.packed_dim_rd_stride) if self._cfg.repack_en else 0
-        self._dut.unpacked_dim_wsize.value = int(self._cfg.unpacked_dim_wr_size) if self._cfg.repack_en else 0
-        self._dut.unpacked_dim_wstride.value = int(self._cfg.unpacked_dim_wr_stride) if self._cfg.repack_en else 0
+            else:
+                self._dut.waddr_size[i].value = 1
+                self._dut.waddr_stride[i].value = 0
+        self._dut.packed_dim_size.value = int(self._cfg.packed_dim_size)
+        self._dut.unpacked_dim_size.value = int(self._cfg.unpacked_dim_size)
 
     async def _driver(self) -> None:
         self._set_register()
@@ -155,8 +164,8 @@ class TransposerTester(BaseTester):
         for _ in range(self._cfg._output_mem.depth):
             addr, data = await self._mon_port.get()
             mask = self._cfg._output_mem.get_mask(addr)
-            actual = hex(np.bitwise_and(int(data, 2), int(mask, 2)))
-            expected = hex(np.bitwise_and(int(self._cfg._output_mem[addr], 2), int(mask, 2)))
+            actual = hex(int(data, 2) & int(mask, 2))
+            expected = hex(int(self._cfg._output_mem[addr], 2) & int(mask, 2))
             if actual != expected:
                 self._cfg._input_mem.dump("input.hex")
                 self._cfg._output_mem.dump("ref.hex")
