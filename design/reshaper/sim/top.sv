@@ -25,23 +25,45 @@ module top #(parameter AW=16, DW=512, BUFFW=512*3, ADIM=6, MEM_DELAY=8)(
     output reg finish
 );
 
-reshaper #(.AW(AW), .DW(DW), .BUFFW(BUFFW), .ADIM(ADIM), .MEM_DELAY(MEM_DELAY)) u_reshaper(.*);
-//bind top.u_reshaper reshaper_assertion #(.AW(AW)) u_reshaper_assertion(
-//    .clk
-//,   .reset_n
-//,   .init_pulse
-//,   .rshpffrvld
-//,   .rdffwfull(rd_fifo.ffwfull)
-//,   .rdffwreq(rd_fifo.ffwreq)
-//,   .rshpffwreq(rshp_fifo.ffwreq)
-//,   .rreq_num
-//,   .wreq_num
-//,   .raddr_vld
-//,   .rdata_vld
-//,   .waddr_vld(waddr_gen.addr_vld)
-//,   .wdata_vld
-//,   .finish
-//);
-//bind top.u_reshaper reshaper_coverage #(.AW(AW), .DW(DW)) u_reshaper_coverage(.*);
+`ifdef SAIF_ON
+initial begin
+	$set_toggle_region("top.u_reshaper");
+	$toggle_start();
+end
+final begin
+	$toggle_stop();
+	$toggle_report("reshaper.saif", 1e-9, "top.u_reshaper");
+end
+`endif
 
+`ifdef RTL_SIM
+reshaper #(.AW(AW), .DW(DW), .BUFFW(BUFFW), .ADIM(ADIM), .MEM_DELAY(MEM_DELAY)) u_reshaper(.*);
+//bind top.u_reshaper reshaper_assertion #(.AW(AW)) u_reshaper_assertion(.*);
+//bind top.u_reshaper reshaper_coverage #(.AW(AW), .DW(DW)) u_reshaper_coverage(.*);
+`endif
+`ifdef PRE_SIM
+reshaper u_reshaper(
+    .clk(clk)
+,   .reset_n(reset_n)
+,   .init_pulse(init_pulse)
+,   .rreq_num(rreq_num)
+,   .raddr_base(raddr_base)
+,   .raddr_size({>>AW{raddr_size}})
+,   .raddr_stride({>>AW{raddr_stride}})
+,   .wreq_num(wreq_num)
+,   .waddr_base(waddr_base)
+,   .waddr_size({>>AW{waddr_size}})
+,   .waddr_stride({>>AW{waddr_stride}})
+,   .rdata_size(rdata_size)
+,   .wdata_size(wdata_size)
+,   .raddr(raddr)
+,   .raddr_vld(raddr_vld)
+,   .rdata(rdata)
+,   .rdata_vld(rdata_vld)
+,   .waddr(waddr)
+,   .wdata(wdata)
+,   .wdata_vld(wdata_vld)
+,   .finish(finish)
+);
+`endif
 endmodule: top

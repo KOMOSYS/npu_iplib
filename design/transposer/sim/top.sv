@@ -27,8 +27,47 @@ module top #(parameter AW=16, BUFFD=64, ADIM=6)(
     output reg finish
 );
 
+`ifdef SAIF_ON
+initial begin
+	$set_toggle_region("top.u_transposer");
+	$toggle_start();
+end
+final begin
+	$toggle_stop();
+	$toggle_report("transposer.saif", 1e-9, "top.u_transposer");
+end
+`endif
+
+`ifdef RTL_SIM
 transposer #(.AW(AW), .BUFFD(BUFFD), .ADIM(ADIM)) u_transposer(.*);
 //bind top.u_transposer transposer_assertion #(.AW(AW), .BUFFD(BUFFD)) u_transposer_assertion(.*);
 //bind top.u_transposer transposer_coverage #(.AW(AW), .BUFFD(BUFFD)) u_transposer_coverage(.*);
-
+`endif
+`ifdef PRE_SIM
+transposer u_transposer(
+    .clk(clk)
+,   .reset_n(reset_n)
+,   .init_pulse(init_pulse)
+,   .repack_en(repack_en)
+,   .mode(mode)
+,   .rreq_num(rreq_num)
+,   .raddr_base(raddr_base)
+,   .raddr_size({>>AW{raddr_size}})
+,   .raddr_stride({>>AW{raddr_stride}})
+,   .wreq_num(wreq_num)
+,   .waddr_base(waddr_base)
+,   .waddr_size({>>AW{waddr_size}})
+,   .waddr_stride({>>AW{waddr_stride}})
+,   .packed_dim_size(packed_dim_size)
+,   .unpacked_dim_size(unpacked_dim_size)
+,   .raddr(raddr)
+,   .raddr_vld(raddr_vld)
+,   .rdata(rdata)
+,   .rdata_vld(rdata_vld)
+,   .waddr(waddr)
+,   .wdata(wdata)
+,   .wdata_vld(wdata_vld)
+,   .finish(finish)
+);
+`endif
 endmodule: top

@@ -3,21 +3,21 @@ MODULE_NAME = $(notdir $(realpath ../))
 
 ifeq ($(SIM_TYPE), RTL_SIM)
 	FILE_LIST = $(realpath ./file_list.f)
-	#COMPILE_ARGS += -kdb +vcs+fsdbon+all
 	EXTRA_ARGS = -cm line+cond+fsm+branch
 	export RANDOM_SEED = $(shell echo $$((RANDOM+1)))
 	export MAX_ITER = 100
 endif
 ifeq ($(SIM_TYPE), PRE_SIM)
 	FILE_LIST = $(realpath ./file_list.pre.f)
-	COMPILE_ARGS += +notimingcheck +nospecify 
-	COMPILE_ARGS += -kdb +vcs+fsdbon+all
+	PLUSARGS += +define+SAIF_ON
 	export RANDOM_SEED = 1
 	export MAX_ITER = 10
 	TESTCASE=normal
 endif
+COMPILE_ARGS += +notimingcheck +nospecify 
 COMPILE_ARGS += -l ./vcs.comp.log -F $(FILE_LIST)
-PLUSARGS = +define+$(SIM_TYPE)
+#COMPILE_ARGS += -kdb +vcs+fsdbon+all
+PLUSARGS += +define+$(SIM_TYPE)
 
 SIM = vcs
 TOPLEVEL = top

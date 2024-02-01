@@ -13,7 +13,24 @@ module top #(parameter DEPTH=6, AW=16) (
 	output reg          pad_vld
 );
 
-nested_addr_gen #(.DEPTH(DEPTH), .AW(AW)) u_nested_addr_gen(
+`ifdef SAIF_ON
+initial begin
+	$set_toggle_region("top.u_nested_addr_gen");
+	$toggle_start();
+end
+final begin
+	$toggle_stop();
+	$toggle_report("nested_addr_gen.saif", 1e-9, "top.u_nested_addr_gen");
+end
+`endif
+
+`ifdef RTL_SIM
+nested_addr_gen #(.DEPTH(DEPTH), .AW(AW)) u_nested_addr_gen(.*);
+bind top.u_nested_addr_gen nested_addr_gen_assertion #(.AW(AW), .DEPTH(DEPTH)) u_nested_addr_gen_assertion(.*);
+bind top.u_nested_addr_gen nested_addr_gen_coverage #(.AW(AW), .DEPTH(DEPTH)) u_nested_addr_gen_coverage(.*);
+`endif
+`ifdef PRE_SIM
+nested_addr_gen u_nested_addr_gen(
 	.clk(clk)
 ,	.reset_n(reset_n)
 ,	.init_pulse(init_pulse)
@@ -26,23 +43,6 @@ nested_addr_gen #(.DEPTH(DEPTH), .AW(AW)) u_nested_addr_gen(
 ,	.addr(addr)
 ,	.addr_vld(addr_vld)
 ,	.pad_vld(pad_vld)
-);
-`ifdef RTL_SIM
-bind top.u_nested_addr_gen nested_addr_gen_assertion #(.AW(AW), .DEPTH(DEPTH)) u_nested_addr_gen_assertion(
-	.clk(clk)
-,	.reset_n(reset_n)
-,	.init_pulse(init_pulse)
-,	.size(size)
-,	.addr(addr)
-,	.addr_vld(addr_vld)
-);
-bind top.u_nested_addr_gen nested_addr_gen_coverage #(.AW(AW), .DEPTH(DEPTH)) u_nested_addr_gen_coverage(
-	.reset_n(reset_n)
-,	.init_pulse(init_pulse)
-,	.base(base)
-,	.pad_before(pad_before)
-,	.size(size)
-,	.pad_after(pad_after)
 );
 `endif
 endmodule: top

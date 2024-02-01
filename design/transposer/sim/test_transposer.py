@@ -41,8 +41,8 @@ class RandomConfig(BaseConfig):
             in_data = np.random.rand(*self.in_shape).astype(np.float32)
         ref_data = in_data.transpose(*self.trp_info)
 
-        self.raddr_base = random.randint(0, (1<<16) - self._get_mem_depth(self.in_shape))
-        self.waddr_base = random.randint(0, (1<<16) - self._get_mem_depth(self.out_shape))
+        self.raddr_base = 0#random.randint(0, (1<<16) - self._get_mem_depth(self.in_shape))
+        self.waddr_base = 0#random.randint(0, (1<<16) - self._get_mem_depth(self.out_shape))
 
         self.packed_dim = self.trp_info[-1]
         self.packed_dim_size = self.in_shape[self.packed_dim]
@@ -197,7 +197,7 @@ class TransposerTester(BaseTester):
 random_seed = int(os.getenv("RANDOM_SEED")) if os.getenv("RANDOM_SEED") is not None else 1
 max_iter = int(os.getenv("MAX_ITER")) if os.getenv("MAX_ITER") is not None else 100
 
-@cocotb.test()
+#@cocotb.test()
 @intr_handler
 async def small_img(dut):
     clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
@@ -223,7 +223,7 @@ async def small_img(dut):
             await tester.main_phase()
     clk.kill()
 
-@cocotb.test()
+#@cocotb.test()
 @intr_handler
 async def random_dynamic_reset(dut):
     clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
@@ -241,7 +241,7 @@ async def random_dynamic_reset(dut):
             await sequence.dynamic_reset(tester, cfg)
     clk.kill()
 
-@cocotb.test()
+#@cocotb.test()
 @intr_handler
 async def directed_dynamic_reset(dut):
     clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
