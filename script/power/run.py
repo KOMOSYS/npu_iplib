@@ -39,12 +39,14 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--top", action="store", required=True, type=str, help="Top module name")
     parser.add_argument("-T", "--top-hier", action="store", required=True, type=str, help="Top module hier path")
     parser.add_argument("-n", "--net", action="store", required=True, type=str, help="PreNet path")
-    parser.add_argument("-s", "--saif", action="store", required=True, type=str, help="SAIF path")
+    parser.add_argument("-s", "--sdc", action="store", required=True, type=str, help="Synopsys design constraint file")
+    parser.add_argument("-S", "--saif", action="store", required=True, type=str, help="SAIF path")
     args = parser.parse_args()
 
     setup_tcl_path = Path(__file__).parent.resolve() / args.process / 'setup.tcl'
     run_tcl_path = Path(__file__).parent.resolve() / 'run.tcl'
     net_path = Path(args.net).resolve()
+    sdc_path = Path(args.sdc).resolve()
     saif_path = Path(args.saif).resolve()
 
     
@@ -62,6 +64,7 @@ if __name__ == "__main__":
         net_path=net_path,
         top_module=args.top,
         top_path=args.top_hier,
+        sdc_file=sdc_path,
         saif_path=saif_path,
         setup_tcl=setup_tcl_path,
     )
