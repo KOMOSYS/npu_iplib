@@ -25,22 +25,9 @@ covergroup cg_pad(ref logic [AW-1:0] bpad, apad) @(posedge init_pulse iff (reset
 	cx_pad_comb : cross bpad, apad;
 endgroup: cg_pad
 
-logic [$clog2(DEPTH):0] depth;
-always_comb begin
-	depth = 0;
-	for(int i=0; i<DEPTH; i++)
-		depth = (size[i] != 0) ? (depth + 1) : depth;
-end
-covergroup cg_depth @(posedge init_pulse iff (reset_n));
-	cp_depth : coverpoint depth {
-		bins depth[] = {[1:DEPTH]};
-	}
-endgroup: cg_depth
-
 cg_addr u_cg_addr = new();
 cg_pad u_cg_pad[DEPTH];
 for(genvar i=0; i<DEPTH; i++)
 	initial u_cg_pad[i] = new(pad_before[i], pad_after[i]);
-cg_depth u_cg_depth = new();
 
 endmodule: nested_addr_gen_coverage

@@ -138,14 +138,14 @@ always_ff@(posedge clk or negedge reset_n) begin
 	else                addr_vld <= addr_req_d[1];
 end
 always_comb begin
-	cur_addr = base_addr;
+	cur_addr = 0;
 	for(int i=0; i<(DEPTH/2); i++)
 		cur_addr = cur_addr + addr_sum[i];
 end
 always_ff@(posedge clk or negedge reset_n) begin
 	if(~reset_n)        addr <= 0;
 	else if(init_pulse) addr <= 0;
-	else                addr <= cur_addr;
+	else                addr <= base_addr + cur_addr;
 end
 always_ff@(posedge clk or negedge reset_n) begin
 	if(~reset_n)        pad_vld <= 0;

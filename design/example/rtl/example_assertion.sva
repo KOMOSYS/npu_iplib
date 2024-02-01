@@ -1,5 +1,0 @@
-module example_assertion(
-    input clk,
-    input reset_n
-);
-endmodule: example_assertion

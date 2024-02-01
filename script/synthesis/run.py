@@ -75,10 +75,11 @@ if __name__ == "__main__":
     with chdir("tmp"):
         Path("run.tcl").write_text(run_tcl)
         os.system(f"{DC_PATH} -f run.tcl")
-        timing_rpt = Path("timing.txt").read_text()
-        area_rpt = Path("area.txt").read_text()
+        if "No paths" not in Path("timing.txt").read_text():
+            shutil.copy("timing.txt", "../timing.txt")
+        else:
+            shutil.copy("design.txt", "../design.txt")
+            shutil.copy("area.txt", "../area.txt")
+            shutil.copy(f"{args.top}.v", f"../{args.top}.v")
     shutil.rmtree("tmp")
-    if "No paths" not in timing_rpt:
-        Path("timing.txt").write_text(timing_rpt)
-    else:
-        Path("area.txt").write_text(area_rpt)
+    
