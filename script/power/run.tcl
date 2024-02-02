@@ -9,12 +9,12 @@ set_host_options -num_processes 4 -max_cores 4
 set power_enable_analysis true
 set power_analysis_mode averaged
 
+read_verilog $net_path
+read_sdc $sdc_file
 foreach i $cond_list {{
     set cond $i
     source {setup_tcl}
-    read_verilog $net_path
     link -force $top_module
-    read_sdc $sdc_file
     read_saif -strip_path $top_path $saif_path
     check_power
     update_power
