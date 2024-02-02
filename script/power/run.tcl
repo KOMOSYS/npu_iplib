@@ -13,12 +13,13 @@ foreach i $cond_list {{
     set cond $i
     source {setup_tcl}
     read_verilog $net_path
-    link -force $top_module
+    link $top_module
     read_sdc $sdc_file
     read_saif -strip_path $top_path $saif_path
     check_power
     update_power
     report_power > [string cat $cond ".pwr.txt"]
+    report_switching_activity -list_not_annotated > not_annotated.txt
     remove_design -all
 }}
-report_switching_activity -list_not_annotated > not_annotated.txt
+exit
