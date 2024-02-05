@@ -36,8 +36,6 @@ typedef enum logic [1:0] {
 reg run;
 
 wire raddr_req;
-wire [AW-1:0] raddr_bpad[ADIM];
-wire [AW-1:0] raddr_apad[ADIM];
 wire inc_rreqcnt;
 wire clr_rreqcnt;
 reg [AW-1:0] rreqcnt;
@@ -74,15 +72,13 @@ wire trpffrvld[2];
 reg [BUFFD*8-1:0] trpffdata;
 
 wire waddr_req;
-wire [AW-1:0] waddr_bpad[ADIM];
-wire [AW-1:0] waddr_apad[ADIM];
 wire inc_wreqcnt;
 wire clr_wreqcnt;
 reg [AW-1:0] wreqcnt;
 reg [AW-1:0] wreqcnt_max;
 reg lastwreq;
-reg lastwreq_d[2];
-reg [BUFFD*8-1:0] rdata_d[2];
+reg [1:0] lastwreq_d;
+reg [1:0][BUFFD*8-1:0] rdata_d;
 
 always_ff@(posedge clk or negedge reset_n) begin 
     if(~reset_n)        run <= 0;
@@ -91,8 +87,6 @@ always_ff@(posedge clk or negedge reset_n) begin
 end
 
 assign raddr_req = (pend_rreqcnt < RDFFD) & (rreqcnt != rreqcnt_max) & run;
-for(genvar i=0; i<ADIM; i++) assign raddr_bpad[i] = 0;
-for(genvar i=0; i<ADIM; i++) assign raddr_apad[i] = 0;
 assign inc_rreqcnt = raddr_req;
 assign clr_rreqcnt = finish;
 always_ff@(posedge clk or negedge reset_n) begin 
@@ -117,9 +111,9 @@ nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) u_raddr_gen(
 ,   .init_pulse
 ,   .addr_req(raddr_req)
 ,   .base(raddr_base)
-,   .pad_before(raddr_bpad)
+,   .pad_before('{default:'0})
 ,   .size(raddr_size)
-,   .pad_after(raddr_apad)
+,   .pad_after('{default:'0})
 ,   .stride(raddr_stride)
 ,   .addr(raddr)
 ,   .addr_vld(raddr_vld)
@@ -221,8 +215,6 @@ always_ff@(posedge clk or negedge reset_n) begin
 end
 
 assign waddr_req = repack_en ? trpffrreq[trpffridx] : rdata_vld;
-for(genvar i=0; i<ADIM; i++) assign waddr_bpad[i] = 0;
-for(genvar i=0; i<ADIM; i++) assign waddr_apad[i] = 0;
 assign inc_wreqcnt = waddr_req;
 assign clr_wreqcnt = finish;
 always_ff@(posedge clk or negedge reset_n) begin 
@@ -242,16 +234,9 @@ always_ff@(posedge clk or negedge reset_n) begin
     else                                                lastwreq <= 0;
 end
 always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)          lastwreq_d[0] <= 0;
-    else if(init_pulse)   lastwreq_d[0] <= 0;
-    else                  lastwreq_d[0] <= lastwreq;
-end
-for(genvar i=1; i<$size(lastwreq_d); i++) begin
-    always_ff@(posedge clk or negedge reset_n) begin
-        if(~reset_n)          lastwreq_d[i] <= 0;
-        else if(init_pulse)   lastwreq_d[i] <= 0;
-        else                  lastwreq_d[i] <= lastwreq_d[i-1];
-    end
+    if(~reset_n)          lastwreq_d <= 0;
+    else if(init_pulse)   lastwreq_d <= 0;
+    else                  lastwreq_d <= {lastwreq_d[$size(lastwreq_d)-2:0], lastwreq};
 end
 nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) u_waddr_gen(
     .clk
@@ -259,9 +244,9 @@ nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) u_waddr_gen(
 ,   .init_pulse
 ,   .addr_req(waddr_req)
 ,   .base(waddr_base)
-,   .pad_before(waddr_bpad)
+,   .pad_before('{default:'0})
 ,   .size(waddr_size)
-,   .pad_after(waddr_apad)
+,   .pad_after('{default:'0})
 ,   .stride(waddr_stride)
 ,   .addr(waddr)
 ,   .addr_vld(wdata_vld)
@@ -269,16 +254,9 @@ nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) u_waddr_gen(
 );
 
 always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)        rdata_d[0] <= 0;
-    else if(init_pulse) rdata_d[0] <= 0;
-    else if(~repack_en) rdata_d[0] <= rdata;
-end
-for(genvar i=1; i<$size(rdata_d); i++) begin
-    always_ff@(posedge clk or negedge reset_n) begin
-        if(~reset_n)        rdata_d[i] <= 0;
-        else if(init_pulse) rdata_d[i] <= 0;
-        else if(~repack_en) rdata_d[i] <= rdata_d[i-1];
-    end
+    if(~reset_n)          rdata_d <= 0;
+    else if(init_pulse)   rdata_d <= 0;
+    else                  rdata_d <= {rdata_d[$size(rdata_d)-2:0], rdata};
 end
 
 always_ff@(posedge clk or negedge reset_n) begin

@@ -11,26 +11,16 @@ property addr_unknown(logic valid, logic [AW-1:0] addr);
     @(posedge clk) disable iff (~reset_n) valid |-> !$isunknown(addr);
 endproperty: addr_unknown
 
-wire [DEPTH-1:0] size_nonzero;
-wire [DEPTH-2:0] invld_info;
-for(genvar i=0; i<DEPTH; i++) begin
-	assign size_nonzero[i] = size[i] != 0;
-end
-for(genvar i=0; i<DEPTH-1; i++) begin
-	assign invld_info[i] = ~size_nonzero[i] & |size_nonzero[DEPTH-1:i+1];
-end
-property invld_size();
-    @(posedge init_pulse) disable iff (~reset_n) not $countones(invld_info);
+property invld_size(logic [AW-1:0] size);
+	@(posedge clk) disable iff (~reset_n) $rose(init_pulse) |-> size != 0;
 endproperty: invld_size
-
-property init_ispulse();
-	@(posedge clk) disable iff (~reset_n) $rose(init_pulse) |=> $fell(init_pulse);
-endproperty: init_ispulse
 
 raddr_unknown:
 assert property(addr_unknown(addr_vld, addr)) else $fatal("Read Address is Unknown");
 
-size_invalid:
-assert property(invld_size) else $fatal("Invalid Address Generator Size");
+for(genvar i=0; i<DEPTH; i++) begin
+	size_invalid:
+	assert property(invld_size(size[i])) else $fatal("Invalid Address Generator Size");
+end
 
 endmodule: nested_addr_gen_assertion

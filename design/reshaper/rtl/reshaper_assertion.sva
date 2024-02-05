@@ -2,11 +2,6 @@ module reshaper_assertion #(parameter AW=16)(
     input clk,
     input reset_n,
     input init_pulse,
-    input waddr_vld,
-    input rshpffrvld,
-    input rdffwfull,
-    input rdffwreq,
-    input rshpffwreq,
     input [AW-1:0] rreq_num,
     input [AW-1:0] wreq_num,
     input raddr_vld,
@@ -15,52 +10,26 @@ module reshaper_assertion #(parameter AW=16)(
     input finish
 );
 
-sequence rose_fell(logic signal);
-    $rose(signal) ##[1:$] $fell(signal);
-endsequence: rose_fell
-
-property valid_intersect();
-    @(posedge clk) disable iff(~reset_n) $rose(waddr_vld) |-> rose_fell(waddr_vld) intersect rose_fell(wdata_vld);
-endproperty: valid_intersect
-
-property fifo_fullwrite(logic isfull, logic wen);
-    @(posedge clk) disable iff(~reset_n) isfull |-> ~wen;
-endproperty: fifo_fullwrite
-
 /** Sequence to count request num
 * Until rising edge of finish, request valid count must reach request num
 */
-sequence req_num_checker(logic [AW-1:0] req_num, logic req_vld);
+sequence req_num_check_sequence(logic [AW-1:0] req_num, logic req_vld);
     logic [AW-1:0] cnt_max;
     logic [AW-1:0] cnt;
     (1, cnt_max=req_num, cnt=0) ##0 first_match((req_vld, cnt+=1)[=1:$] ##0 finish) ##0 (cnt == cnt_max);
-endsequence: req_num_checker
+endsequence: req_num_check_sequence
 
-property raddr_cnt();
-    @(posedge clk) disable iff(~reset_n) init_pulse |-> req_num_checker(rreq_num, raddr_vld);
-endproperty: raddr_cnt
-
-property rdata_cnt();
-    @(posedge clk) disable iff(~reset_n) init_pulse |-> req_num_checker(rreq_num, rdata_vld);
-endproperty: rdata_cnt
-
-property wdata_cnt();
-    @(posedge clk) disable iff(~reset_n) init_pulse |-> req_num_checker(wreq_num, wdata_vld);
-endproperty: wdata_cnt
-
-wvalid_chk:
-assert property(valid_intersect) else $fatal("Write Address and Data Valid not Intersect");
-
-rdfifo_chk:
-assert property(fifo_fullwrite(rdffwfull, rdffwreq)) else $fatal("Read Fifo Full Write");
+property req_num_checker(logic [AW-1:0] req_num, valid_sig);
+    @(posedge clk) disable iff(~reset_n) init_pulse |-> req_num_check_sequence(req_num, valid_sig);
+endproperty: req_num_checker
 
 arcnt_chk:
-assert property(raddr_cnt) else $fatal("Read Address Count Check Fail");
+assert property(req_num_checker(rreq_num, raddr_vld)) else $fatal("Read Address Count Check Fail");
 
 rcnt_chk:
-assert property(rdata_cnt) else $fatal("Read Data Count Check Fail");
+assert property(req_num_checker(rreq_num, rdata_vld)) else $fatal("Read Data Count Check Fail");
 
 wcnt_chk:
-assert property(wdata_cnt) else $fatal("Write Data Count Check Fail");
+assert property(req_num_checker(wreq_num, wdata_vld)) else $fatal("Write Data Count Check Fail");
 
 endmodule: reshaper_assertion

@@ -22,7 +22,7 @@ covergroup cg_pad(ref logic [AW-1:0] bpad, apad) @(posedge init_pulse iff (reset
 		bins zero = {0};
 		bins nonzero = {[0:$]} with (item != 0);
 	}
-	cx_pad_comb : cross bpad, apad;
+	cx_pad_comb : cross cp_pad_before, cp_pad_after;
 endgroup: cg_pad
 
 cg_addr u_cg_addr = new();

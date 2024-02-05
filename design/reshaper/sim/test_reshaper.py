@@ -170,7 +170,7 @@ class ReshaperTester(BaseTester):
 random_seed = int(os.getenv("RANDOM_SEED")) if os.getenv("RANDOM_SEED") is not None else 1
 max_iter = int(os.getenv("MAX_ITER")) if os.getenv("MAX_ITER") is not None else 100
 
-#@cocotb.test()
+@cocotb.test()
 @intr_handler
 async def small_img(dut):
     clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())
@@ -193,7 +193,7 @@ async def small_img(dut):
             await tester.main_phase()
     clk.kill()
 
-#@cocotb.test()
+@cocotb.test()
 @intr_handler
 async def random_dynamic_reset(dut):
     clk = cocotb.start_soon(Clock(dut.clk, 1, units="ns").start())

@@ -40,8 +40,8 @@ end
 
 `ifdef RTL_SIM
 transposer #(.AW(AW), .BUFFD(BUFFD), .ADIM(ADIM)) u_transposer(.*);
-//bind top.u_transposer transposer_assertion #(.AW(AW), .BUFFD(BUFFD)) u_transposer_assertion(.*);
-//bind top.u_transposer transposer_coverage #(.AW(AW), .BUFFD(BUFFD)) u_transposer_coverage(.*);
+bind top.u_transposer transposer_assertion #(.AW(AW), .BUFFD(BUFFD)) u_transposer_assertion(.*);
+bind top.u_transposer transposer_coverage u_transposer_coverage(.*);
 `endif
 `ifdef PRE_SIM
 transposer u_transposer(

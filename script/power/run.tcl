@@ -18,7 +18,7 @@ foreach i $cond_list {{
     read_saif -strip_path $top_path $saif_path
     check_power
     update_power
-    report_power > [string cat $cond ".pwr.txt"]
+    report_power > [string cat $cond ".pwr"]
     report_switching_activity -list_not_annotated > not_annotated.txt
     remove_design -all
 }}

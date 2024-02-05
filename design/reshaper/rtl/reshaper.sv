@@ -30,8 +30,6 @@ localparam RDFFD = MEM_DELAY + 7;
 reg run;
 
 wire raddr_req;
-wire [AW-1:0] raddr_bpad[ADIM];
-wire [AW-1:0] raddr_apad[ADIM];
 wire inc_rreqcnt;
 wire clr_rreqcnt;
 reg [AW-1:0] rreqcnt;
@@ -61,7 +59,7 @@ wire [DW-1:0] rshpffwdata;
 wire rshpffrreq;
 wire [$clog2(DBYTE):0] rshpffrbyte;
 reg [DW-1:0] rshpffrdata;
-reg [DW-1:0] rshpffrdata_d[2];
+reg [1:0][DW-1:0] rshpffrdata_d;
 reg rshpffrvld;
 reg [$clog2(BUFFW/8):0] rshpffvbyte;
 
@@ -73,15 +71,13 @@ wire [$clog2(DBYTE):0] wbyte;
 reg [$clog2(DBYTE):0] last_wbyte;
 
 wire waddr_req;
-wire [AW-1:0] waddr_bpad[ADIM];
-wire [AW-1:0] waddr_apad[ADIM];
 
 wire inc_wreqcnt;
 wire clr_wreqcnt;
 reg [AW-1:0] wreqcnt;
 reg [AW-1:0] wreqcnt_max;
 reg lastwreq;
-reg lastwreq_d[2];
+reg [1:0] lastwreq_d;
 
 
 always_ff@(posedge clk or negedge reset_n) begin 
@@ -91,8 +87,6 @@ always_ff@(posedge clk or negedge reset_n) begin
 end
 
 assign raddr_req = (pend_rreqcnt < RDFFD) & (rreqcnt != rreqcnt_max) & run;
-for(genvar i=0; i<ADIM; i++) assign raddr_bpad[i] = 0;
-for(genvar i=0; i<ADIM; i++) assign raddr_apad[i] = 0;
 assign inc_rreqcnt = raddr_req;
 assign clr_rreqcnt = finish;
 always_ff@(posedge clk or negedge reset_n) begin 
@@ -117,9 +111,9 @@ nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) u_raddr_gen(
 ,   .init_pulse
 ,   .addr_req(raddr_req)
 ,   .base(raddr_base)
-,   .pad_before(raddr_bpad)
+,   .pad_before('{default:'0})
 ,   .size(raddr_size)
-,   .pad_after(raddr_apad)
+,   .pad_after('{default:'0})
 ,   .stride(raddr_stride)
 ,   .addr(raddr)
 ,   .addr_vld(raddr_vld)
@@ -161,7 +155,7 @@ always_ff@(posedge clk or negedge reset_n) begin
     else if(rdata_vld)   rdffwdata.rdata <= rdata;
 end
 assign rdffrreq = rshpffwreq;
-fwft_fifo#(.FD(RDFFD), .DW($bits(rdata_t))) u_rd_fifo(
+fwft_fifo#(.FD(RDFFD), .DW($size(rdata_t))) u_rd_fifo(
     .clk
 ,   .reset_n
 ,   .ffwfull()
@@ -180,16 +174,9 @@ assign rshpffwdata = rdffrdata.rdata;
 assign rshpffrreq = (rshpffrbyte <= rshpffvbyte) & run;
 assign rshpffrbyte = wbyte;
 always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)          rshpffrdata_d[0] <= 0;
-    else if(init_pulse)   rshpffrdata_d[0] <= 0;
-    else                  rshpffrdata_d[0] <= rshpffrdata;
-end
-for(genvar i=1; i<$size(rshpffrdata_d); i++) begin
-    always_ff@(posedge clk or negedge reset_n) begin
-        if(~reset_n)          rshpffrdata_d[i] <= 0;
-        else if(init_pulse)   rshpffrdata_d[i] <= 0;
-        else                  rshpffrdata_d[i] <= rshpffrdata_d[i-1];
-    end
+    if(~reset_n)          rshpffrdata_d <= 0;
+    else if(init_pulse)   rshpffrdata_d <= 0;
+    else                  rshpffrdata_d <= {rshpffrdata_d[$size(rshpffrdata_d)-2:0], rshpffrdata};
 end
 rshp_fifo #(.DW(DW), .BUFFW(BUFFW)) u_rshp_fifo(
     .clk
@@ -224,17 +211,15 @@ always_ff@(posedge clk or negedge reset_n) begin
 end
 
 assign waddr_req = rshpffrvld & (wreqcnt < wreqcnt_max) & run;
-for(genvar i=0; i<ADIM; i++) assign waddr_bpad[i] = 0;
-for(genvar i=0; i<ADIM; i++) assign waddr_apad[i] = 0;
 nested_addr_gen#(.DEPTH(ADIM), .AW(AW)) u_waddr_gen(
     .clk
 ,   .reset_n
 ,   .init_pulse
 ,   .addr_req(waddr_req)
 ,   .base(waddr_base)
-,   .pad_before(waddr_bpad)
+,   .pad_before('{default:'0})
 ,   .size(waddr_size)
-,   .pad_after(waddr_apad)
+,   .pad_after('{default:'0})
 ,   .stride(waddr_stride)
 ,   .addr(waddr)
 ,   .addr_vld(wdata_vld)
@@ -260,16 +245,9 @@ always_ff@(posedge clk or negedge reset_n) begin
     else                                                lastwreq <= 0;
 end
 always_ff@(posedge clk or negedge reset_n) begin
-    if(~reset_n)          lastwreq_d[0] <= 0;
-    else if(init_pulse)   lastwreq_d[0] <= 0;
-    else                  lastwreq_d[0] <= lastwreq;
-end
-for(genvar i=1; i<$size(lastwreq_d); i++) begin
-    always_ff@(posedge clk or negedge reset_n) begin
-        if(~reset_n)          lastwreq_d[i] <= 0;
-        else if(init_pulse)   lastwreq_d[i] <= 0;
-        else                  lastwreq_d[i] <= lastwreq_d[i-1];
-    end
+    if(~reset_n)          lastwreq_d <= 0;
+    else if(init_pulse)   lastwreq_d <= 0;
+    else                  lastwreq_d <= {lastwreq_d[$size(lastwreq_d)-2:0], lastwreq};
 end
 
 always_ff@(posedge clk or negedge reset_n) begin 

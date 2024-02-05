@@ -33,7 +33,7 @@ reg  [DEPTH-1:0] is_pad;
 reg  [AW-1:0]    addr_sum[DEPTH/2];
 reg              pad_vld_tmp;
 
-reg              addr_req_d[2];
+reg  [1:0]       addr_req_d;
 reg  [AW-1:0]    cur_addr;
 
 for(genvar i=0; i<DEPTH; i++) begin
@@ -85,12 +85,11 @@ for(genvar i=0; i<DEPTH; i++) begin
 		else                     clr_addr_cnt[i] <= 0;
 	end
 	always_ff@(posedge clk or negedge reset_n) begin
-		if(~reset_n)                                      inc_addr_cnt[i] <= 0;
-		else if(init_pulse)                               inc_addr_cnt[i] <= 0;
-		else if(!inc_ctrl_cnt[i])                         inc_addr_cnt[i] <= 0;
-		else if(ctrl_cnt[i] < pad_before_max[i])          inc_addr_cnt[i] <= 0;
-		else if(ctrl_cnt[i] < pad_before_size_max[i] - 1) inc_addr_cnt[i] <= 1;
-		else                                              inc_addr_cnt[i] <= 0;  
+		if(~reset_n)                                                                             inc_addr_cnt[i] <= 0;
+		else if(init_pulse)                                                                      inc_addr_cnt[i] <= 0;
+		else if(!inc_ctrl_cnt[i])                                                                inc_addr_cnt[i] <= 0;
+		else if((ctrl_cnt[i] >= pad_before_max[i]) & (ctrl_cnt[i] < pad_before_size_max[i] - 1)) inc_addr_cnt[i] <= 1;
+		else                                                                                     inc_addr_cnt[i] <= 0;  
 	end
 	always_ff@(posedge clk or negedge reset_n) begin
 		if(~reset_n)             addr_cnt[i] <= 0;
@@ -99,11 +98,10 @@ for(genvar i=0; i<DEPTH; i++) begin
 		else if(inc_addr_cnt[i]) addr_cnt[i] <= addr_cnt[i] + addr_stride[i];
 	end
 	always_ff@(posedge clk or negedge reset_n) begin
-		if(~reset_n)                                   is_pad[i] <= 0;
-		else if(init_pulse)                            is_pad[i] <= 0;
-		else if(ctrl_cnt[i] < pad_before_max[i])       is_pad[i] <= 1;
-		else if(ctrl_cnt[i] >= pad_before_size_max[i]) is_pad[i] <= 1;
-		else                                           is_pad[i] <= 0;
+		if(~reset_n)                                                                         is_pad[i] <= 0;
+		else if(init_pulse)                                                                  is_pad[i] <= 0;
+		else if((ctrl_cnt[i] < pad_before_max[i]) | (ctrl_cnt[i] >= pad_before_size_max[i])) is_pad[i] <= 1;
+		else                                                                                 is_pad[i] <= 0;
 	end
 end
 
@@ -121,21 +119,14 @@ always_ff@(posedge clk or negedge reset_n) begin
 end
 
 always_ff@(posedge clk or negedge reset_n) begin
-	if(~reset_n)         addr_req_d[0] <= 0;
-	else if(init_pulse)  addr_req_d[0] <= 0;
-	else                 addr_req_d[0] <= addr_req;
-end
-for(genvar i=1; i<$size(addr_req_d); i++) begin
-	always_ff@(posedge clk or negedge reset_n) begin
-		if(~reset_n)         addr_req_d[i] <= 0;
-		else if(init_pulse)  addr_req_d[i] <= 0;
-		else                 addr_req_d[i] <= addr_req_d[i-1];
-	end
+	if(~reset_n)         addr_req_d <= 0;
+	else if(init_pulse)  addr_req_d <= 0;
+	else                 addr_req_d <= {addr_req_d[$size(addr_req_d)-2:0], addr_req};
 end
 always_ff@(posedge clk or negedge reset_n) begin
 	if(~reset_n)        addr_vld <= 0;
 	else if(init_pulse) addr_vld <= 0;
-	else                addr_vld <= addr_req_d[1];
+	else                addr_vld <= addr_req_d[$size(addr_req_d)-1];
 end
 always_comb begin
 	cur_addr = 0;

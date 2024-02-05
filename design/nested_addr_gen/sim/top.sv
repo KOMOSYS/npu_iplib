@@ -25,9 +25,9 @@ end
 `endif
 
 `ifdef RTL_SIM
-nested_addr_gen #(.DEPTH(DEPTH), .AW(AW)) u_nested_addr_gen(.*);
-bind top.u_nested_addr_gen nested_addr_gen_assertion #(.AW(AW), .DEPTH(DEPTH)) u_nested_addr_gen_assertion(.*);
-bind top.u_nested_addr_gen nested_addr_gen_coverage #(.AW(AW), .DEPTH(DEPTH)) u_nested_addr_gen_coverage(.*);
+nested_addr_gen #(.DEPTH(top.DEPTH), .AW(top.AW)) u_nested_addr_gen(.*);
+bind top.u_nested_addr_gen nested_addr_gen_assertion #(.AW(top.AW), .DEPTH(top.DEPTH)) u_nested_addr_gen_assertion(.*);
+bind top.u_nested_addr_gen nested_addr_gen_coverage #(.AW(top.AW), .DEPTH(top.DEPTH)) u_nested_addr_gen_coverage(.*);
 `endif
 `ifdef PRE_SIM
 nested_addr_gen u_nested_addr_gen(

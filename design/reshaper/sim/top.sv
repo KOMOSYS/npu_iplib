@@ -37,9 +37,12 @@ end
 `endif
 
 `ifdef RTL_SIM
-reshaper #(.AW(AW), .DW(DW), .BUFFW(BUFFW), .ADIM(ADIM), .MEM_DELAY(MEM_DELAY)) u_reshaper(.*);
-//bind top.u_reshaper reshaper_assertion #(.AW(AW)) u_reshaper_assertion(.*);
-//bind top.u_reshaper reshaper_coverage #(.AW(AW), .DW(DW)) u_reshaper_coverage(.*);
+reshaper #(.AW(top.AW), .DW(top.DW), .BUFFW(top.BUFFW), .ADIM(top.ADIM), .MEM_DELAY(top.MEM_DELAY)) u_reshaper(.*);
+bind top.u_reshaper reshaper_assertion #(.AW(top.AW)) u_reshaper_assertion(.*);
+bind top.u_reshaper.u_raddr_gen nested_addr_gen_assertion #(.DEPTH(top.ADIM), .AW(top.AW)) u_raddr_gen_assertion(.*);
+bind top.u_reshaper.u_waddr_gen nested_addr_gen_assertion #(.DEPTH(top.ADIM), .AW(top.AW)) u_waddr_gen_assertion(.*);
+bind top.u_reshaper.u_rd_fifo fifo_assertion #(.DW(top.DW + $clog2(top.DW / 8) + 1)) u_rdfifo_assertion(.*);
+bind top.u_reshaper reshaper_coverage #(.AW(top.AW), .DW(top.DW)) u_reshaper_coverage(.*);
 `endif
 `ifdef PRE_SIM
 reshaper u_reshaper(

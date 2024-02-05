@@ -5,8 +5,8 @@ module transposer_coverage #(parameter AW=16, BUFFD=64)(
     input [1:0] mode,
     input [AW-1:0] raddr_base,
     input [AW-1:0] waddr_base,
-    input [AW-1:0] packed_dim_rsize,
-    input [AW-1:0] unpacked_dim_wsize
+    input [AW-1:0] packed_dim_size,
+    input [AW-1:0] unpacked_dim_size
 );
 
 covergroup cg_addr @(posedge init_pulse iff (reset_n));
@@ -21,7 +21,7 @@ endgroup: cg_addr
 covergroup cg_shape @(posedge init_pulse iff (reset_n));
     option.cross_auto_bin_max = 0;
     
-    cp_packed_size: coverpoint packed_dim_rsize {
+    cp_packed_size: coverpoint packed_dim_size {
         ignore_bins zero = {0};
         bins one = {1};
         bins small_size = {[2:BUFFD-1]};
@@ -30,7 +30,7 @@ covergroup cg_shape @(posedge init_pulse iff (reset_n));
         bins remainder_zero = {[2:$]} with ((item % BUFFD) == 0);
         bins remainder_one = {[2:$]} with ((item % BUFFD) == 1);
     }
-    cp_unpacked_size: coverpoint unpacked_dim_wsize {
+    cp_unpacked_size: coverpoint unpacked_dim_size {
         ignore_bins zero = {0};
         bins one = {1};
         bins small_size = {[2:BUFFD-1]};
@@ -39,8 +39,10 @@ covergroup cg_shape @(posedge init_pulse iff (reset_n));
         bins remainder_zero = {[2:$]} with ((item % BUFFD) == 0);
         bins remainder_one = {[2:$]} with ((item % BUFFD) == 1);
     }
-    cx_oneXone: cross cp_packed_size, cp_unpacked_size {
+    cx_packed_unpacked_size: cross cp_packed_size, cp_unpacked_size {
         bins oneXone = binsof(cp_packed_size.one) && binsof(cp_unpacked_size.one);
+        bins oneXnotone = binsof(cp_packed_size.one) && (!binsof(cp_unpacked_size.one));
+        bins notoneXone = (!binsof(cp_packed_size.one)) && binsof(cp_unpacked_size.one);
     }
 endgroup: cg_shape
 

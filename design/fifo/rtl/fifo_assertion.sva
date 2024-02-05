@@ -1,0 +1,37 @@
+module fifo_assertion #(parameter DW=8) (
+    input clk,
+    input reset_n,
+    input ffwfull,
+    input ffwreq,
+    input [DW-1:0] ffwdata,
+    input ffrempty,
+    input ffrreq,
+    input ffrvld,
+    input [DW-1:0] ffrdata
+);
+
+property fullwrite();
+    @(posedge clk) disable iff(~reset_n) ffwreq |-> ~ffwfull;
+endproperty: fullwrite
+
+property emptyread();
+    @(posedge clk) disable iff(~reset_n) ffrreq |-> ~ffrempty;
+endproperty: emptyread
+
+property data_unknown(logic valid, logic [DW-1:0] data);
+    @(posedge clk) disable iff (~reset_n) valid |-> !$isunknown(data);
+endproperty: data_unknown
+
+fifo_fullwrite:
+assert property(fullwrite) else $fatal("Fifo Full Write Occurs");
+
+fifo_emptyread:
+assert property(emptyread) else $fatal("Fifo Empty Read Occurs");
+
+wdata_unknown:
+assert property(data_unknown(ffwreq, ffwdata)) else $fatal("Fifo Write Data is Unknown");
+
+rdata_unknown:
+assert property(data_unknown(ffrvld, ffrdata)) else $fatal("Fifo Read Data is Unknown");
+
+endmodule: fifo_assertion

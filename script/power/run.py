@@ -77,7 +77,7 @@ if __name__ == "__main__":
         os.system(f"{PTPX_PATH} -f run.tcl")
 
         if get_annotated_ratio(Path("not_annotated.txt").read_text()) > 99:
-            for i in Path("./").glob("*pwr.txt"):
+            for i in Path("./").glob("*.pwr"):
                 shutil.copy(f"{str(i)}", f"../{str(i)}")
         else:
             shutil.copy("not_annotated.txt", "../not_annotated.txt")

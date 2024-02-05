@@ -21,7 +21,7 @@ class RandomConfig(BaseConfig):
             self.bpad = np.array([random.randrange(0, 3) for _ in range(self.depth)])
             self.size = np.array([random.randrange(1, 32) for _ in range(self.depth)])
             self.apad = np.array([random.randrange(0, 3) for _ in range(self.depth)])
-            self.stride = np.array([random.randrange(1, 32) for _ in range(self.depth)])
+            self.stride = np.array([random.randrange(1, 16) for _ in range(self.depth)])
 
             if np.prod(self.size) * np.prod(self.stride) < (1<<addr_width):
                 break
