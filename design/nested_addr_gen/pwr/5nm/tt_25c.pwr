@@ -1,0 +1,32 @@
+****************************************
+Report : Averaged Power
+Design : nested_addr_gen
+Version: S-2021.06-SP5
+Date   : Wed Feb  7 21:32:31 2024
+****************************************
+
+
+
+  Attributes
+  ----------
+      i  -  Including register clock pin internal power
+      u  -  User defined power group
+
+                        Internal  Switching  Leakage    Total
+Power Group             Power     Power      Power      Power   (     %)  Attrs
+--------------------------------------------------------------------------------
+clock_network           1.145e-04 2.140e-05 3.040e-09 1.359e-04 (79.36%)  i
+register                9.376e-06 2.740e-06 1.727e-07 1.229e-05 ( 7.18%)  
+combinational           1.140e-05 1.141e-05 2.426e-07 2.306e-05 (13.46%)  
+sequential                 0.0000    0.0000    0.0000    0.0000 ( 0.00%)  
+memory                     0.0000    0.0000    0.0000    0.0000 ( 0.00%)  
+io_pad                     0.0000    0.0000    0.0000    0.0000 ( 0.00%)  
+black_box                  0.0000    0.0000    0.0000    0.0000 ( 0.00%)  
+
+  Net Switching Power  = 3.555e-05   (20.76%)
+  Cell Internal Power  = 1.353e-04   (79.00%)
+  Cell Leakage Power   = 4.183e-07   ( 0.24%)
+                         ---------
+Total Power            = 1.713e-04  (100.00%)
+
+1

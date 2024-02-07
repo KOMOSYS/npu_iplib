@@ -7,13 +7,14 @@ module transposer_assertion (
     input finish
 );
 
-property fifo_init(logic wreq, logic init, logic rreq);
-    @(posedge clk) disable iff (~reset_n) $fell(rreq) |-> ($rose(init)[=1] ##1 $fell(init)) within (##[1:$] ($rose(wreq) or $rose(finish)));
+/** At the last fifo read request, fifo init must be accompanied */
+property fifo_init(logic init, logic rreq);
+    @(posedge clk) disable iff (~reset_n) $fell(rreq) |-> $rose($past(init, 1)) and $fell(init);
 endproperty: fifo_init
 
 for(genvar i=0; i<2; i++) begin: trpff_init
     trpff_init:
-    assert property(fifo_init(trpffwreq[i], trpffinit[i], trpffrreq[i]));
+    assert property(fifo_init(trpffinit[i], trpffrreq[i]));
     trpff_req:
     assert property(@(posedge clk) disable iff (~reset_n) trpffwreq[i] |-> ~trpffrreq[i]);
 end

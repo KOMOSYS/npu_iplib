@@ -6,3 +6,8 @@ cm.log
 ucli.key
 results.xml
 vcs.run.log
+verdiLog
+vdCovLog
+urgReport
+novas.*
+*.saif

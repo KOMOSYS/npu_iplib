@@ -1,0 +1,30 @@
+ 
+****************************************
+Report : area
+Design : nested_addr_gen
+Version: R-2020.09-SP4
+Date   : Wed Feb  7 21:06:31 2024
+****************************************
+
+Library(s) Used:
+
+    ln04lpp_sc_s7p94t_flk_rvt_c60l06_sspg_nominal_max_0p6750v_m40c_lvf_dth (File: /DKIT/SEC_4LPP/STD_CELL/FE-Liberty/LIBERTY/flk/ln04lpp_sc_s7p94t_flk_rvt_c60l06_sspg_nominal_max_0p6750v_m40c_lvf_dth.db_ccs_tn)
+
+Number of ports:                          474
+Number of nets:                          4506
+Number of cells:                         3844
+Number of combinational cells:           3138
+Number of sequential cells:               692
+Number of macros/black boxes:               0
+Number of buf/inv:                        592
+Number of references:                     106
+
+Combinational area:                220.751397
+Buf/Inv area:                       18.486120
+Noncombinational area:             188.838844
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                   409.590242
+Total area:                 undefined
+1

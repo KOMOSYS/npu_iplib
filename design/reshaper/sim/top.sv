@@ -26,14 +26,18 @@ module top #(parameter AW=16, DW=512, BUFFW=512*3, ADIM=6, MEM_DELAY=8)(
 );
 
 `ifdef SAIF_ON
+`ifndef SAIF_NAME
+initial $fatal("SAIF_NAME must be defined");
+`else
 initial begin
 	$set_toggle_region("top.u_reshaper");
 	$toggle_start();
 end
 final begin
 	$toggle_stop();
-	$toggle_report("reshaper.saif", 1e-9, "top.u_reshaper");
+	$toggle_report(`SAIF_NAME, 1e-9, "top.u_reshaper");
 end
+`endif
 `endif
 
 `ifdef RTL_SIM

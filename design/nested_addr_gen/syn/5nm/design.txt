@@ -1,0 +1,31 @@
+ 
+****************************************
+check_design summary:
+Version:     R-2020.09-SP4
+Date:        Wed Feb  7 20:59:18 2024
+****************************************
+
+                   Name                                            Total
+--------------------------------------------------------------------------------
+Cells                                                              17
+    Cells do not drive (LINT-1)                                    17
+--------------------------------------------------------------------------------
+
+Warning: In design 'nested_addr_gen', cell 'C4127' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4130' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4142' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4145' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4159' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4173' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4189' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4205' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4222' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4240' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4267' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4299' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4330' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4362' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4394' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4425' does not drive any nets. (LINT-1)
+Warning: In design 'nested_addr_gen', cell 'C4432' does not drive any nets. (LINT-1)
+1

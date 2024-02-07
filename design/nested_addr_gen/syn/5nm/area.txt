@@ -1,0 +1,30 @@
+ 
+****************************************
+Report : area
+Design : nested_addr_gen
+Version: R-2020.09-SP4
+Date   : Wed Feb  7 21:02:22 2024
+****************************************
+
+Library(s) Used:
+
+    sc6mcz_ln05lpe_base_rvt_c10_sspg_nominal_max_0p675v_m40c (File: /DKIT/ARM_5LPE/STD_CELL/ln05lpe/DB/sc6mcz_ln05lpe_base_rvt_c10_sspg_nominal_max_0p675v_m40c.db)
+
+Number of ports:                          474
+Number of nets:                          4857
+Number of cells:                         4212
+Number of combinational cells:           3507
+Number of sequential cells:               692
+Number of macros/black boxes:               0
+Number of buf/inv:                        555
+Number of references:                      82
+
+Combinational area:                198.649584
+Buf/Inv area:                       13.226976
+Noncombinational area:             146.009950
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (Wire load has zero net area)
+
+Total cell area:                   344.659534
+Total area:                 undefined
+1

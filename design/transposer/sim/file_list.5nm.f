@@ -1,3 +1,3 @@
 /DKIT/ARM_5LPE/STD_CELL/ln05lpe/VERILOG/sc6mcz_ln05lpe_base_rvt_c10.deposit.v
-../syn/transposer.v
+../syn/5nm/transposer.v
 top.sv

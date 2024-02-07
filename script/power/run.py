@@ -22,7 +22,7 @@ def list2tcllist(data):
     return f"[list \\\n{data}\n]"
 
 def get_condition_list(process):
-    if process == "5nm":
+    if process in ["4nm", "5nm"]:
         return ["tt_25c", "tt_85c", "tt_125c"]
     else:
         raise NotImplementedError("Not supported process")
@@ -35,7 +35,7 @@ def get_annotated_ratio(log):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--process", action="store", type=str, choices=["5nm"], default="5nm", help="Semiconductor fabrication")
+    parser.add_argument("-p", "--process", action="store", type=str, choices=["4nm", "5nm"], default="5nm", help="Semiconductor fabrication")
     parser.add_argument("-t", "--top", action="store", required=True, type=str, help="Top module name")
     parser.add_argument("-T", "--top-hier", action="store", required=True, type=str, help="Top module hier path")
     parser.add_argument("-n", "--net", action="store", required=True, type=str, help="PreNet path")

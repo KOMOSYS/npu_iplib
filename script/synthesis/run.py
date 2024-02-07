@@ -24,19 +24,23 @@ def list2tcllist(data):
 def get_maxlib(process):
     if process == "5nm":
         return "sc6mcz_ln05lpe_base_rvt_c10_sspg_nominal_max_0p675v_m40c"
+    elif process == "4nm":
+        return "ln04lpp_sc_s7p94t_flk_rvt_c60l06_sspg_nominal_max_0p6750v_m40c_lvf_dth"
     else:
         raise NotImplementedError("Not supported process")
 
 def get_maxop(process):
     if process == "5nm":
         return "sspg_nominal_max_0p675v_m40c"
+    elif process == "4nm":
+        return "sspg_0p6750v_m40c"
     else:
         raise NotImplementedError("Not supported process")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file_list", action="store", required=True, type=str, help="RTL file list file")
-    parser.add_argument("-p", "--process", action="store", type=str, choices=["5nm"], default="5nm", help="Semiconductor fabrication")
+    parser.add_argument("-p", "--process", action="store", type=str, choices=["4nm", "5nm"], default="5nm", help="Semiconductor fabrication")
     parser.add_argument("-s", "--sdc", action="store", required=True, type=str, help="Synopsys design constraint file")
     parser.add_argument("-t", "--top", action="store", required=True, type=str, help="Top module name")
     args = parser.parse_args()

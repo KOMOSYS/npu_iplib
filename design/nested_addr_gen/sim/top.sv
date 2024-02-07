@@ -14,14 +14,18 @@ module top #(parameter DEPTH=6, AW=16) (
 );
 
 `ifdef SAIF_ON
+`ifndef SAIF_NAME
+initial $fatal("SAIF_NAME must be defined");
+`else
 initial begin
 	$set_toggle_region("top.u_nested_addr_gen");
 	$toggle_start();
 end
 final begin
 	$toggle_stop();
-	$toggle_report("nested_addr_gen.saif", 1e-9, "top.u_nested_addr_gen");
+	$toggle_report(`SAIF_NAME, 1e-9, "top.u_nested_addr_gen");
 end
+`endif
 `endif
 
 `ifdef RTL_SIM

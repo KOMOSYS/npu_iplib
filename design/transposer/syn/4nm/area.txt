@@ -1,0 +1,30 @@
+ 
+****************************************
+Report : area
+Design : transposer
+Version: R-2020.09-SP4
+Date   : Wed Feb  7 22:55:04 2024
+****************************************
+
+Library(s) Used:
+
+    ln04lpp_sc_s7p94t_flk_rvt_c60l06_sspg_nominal_max_0p6750v_m40c_lvf_dth (File: /DKIT/SEC_4LPP/STD_CELL/FE-Liberty/LIBERTY/flk/ln04lpp_sc_s7p94t_flk_rvt_c60l06_sspg_nominal_max_0p6750v_m40c_lvf_dth.db_ccs_tn)
+
+Number of ports:                         7262
+Number of nets:                        253034
+Number of cells:                       246769
+Number of combinational cells:         169453
+Number of sequential cells:             77120
+Number of macros/black boxes:               0
+Number of buf/inv:                      26094
+Number of references:                     109
+
+Combinational area:               9405.167823
+Buf/Inv area:                      882.243584
+Noncombinational area:           21142.147689
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                 30547.315512
+Total area:                 undefined
+1

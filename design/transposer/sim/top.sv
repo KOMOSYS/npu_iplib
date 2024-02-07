@@ -28,14 +28,18 @@ module top #(parameter AW=16, BUFFD=64, ADIM=6)(
 );
 
 `ifdef SAIF_ON
+`ifndef SAIF_NAME
+initial $fatal("SAIF_NAME must be defined");
+`else
 initial begin
 	$set_toggle_region("top.u_transposer");
 	$toggle_start();
 end
 final begin
 	$toggle_stop();
-	$toggle_report("transposer.saif", 1e-9, "top.u_transposer");
+	$toggle_report(`SAIF_NAME, 1e-9, "top.u_transposer");
 end
+`endif
 `endif
 
 `ifdef RTL_SIM

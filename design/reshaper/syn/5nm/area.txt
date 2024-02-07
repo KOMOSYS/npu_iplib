@@ -1,0 +1,30 @@
+ 
+****************************************
+Report : area
+Design : reshaper
+Version: R-2020.09-SP4
+Date   : Wed Feb  7 22:03:44 2024
+****************************************
+
+Library(s) Used:
+
+    sc6mcz_ln05lpe_base_rvt_c10_sspg_nominal_max_0p675v_m40c (File: /DKIT/ARM_5LPE/STD_CELL/ln05lpe/DB/sc6mcz_ln05lpe_base_rvt_c10_sspg_nominal_max_0p675v_m40c.db)
+
+Number of ports:                         5748
+Number of nets:                         61122
+Number of cells:                        56307
+Number of combinational cells:          43152
+Number of sequential cells:             13098
+Number of macros/black boxes:               0
+Number of buf/inv:                       7158
+Number of references:                     100
+
+Combinational area:               2458.607858
+Buf/Inv area:                      219.259876
+Noncombinational area:            2828.671612
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (Wire load has zero net area)
+
+Total cell area:                  5287.279470
+Total area:                 undefined
+1

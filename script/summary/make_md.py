@@ -10,7 +10,7 @@ md_rpt = """### Coverage
 {power}
 
 ### Area
-Gate Count: {gate_count}
+{area}
 """
 
 def parse_cov_rpt(rpt):
@@ -21,12 +21,7 @@ def parse_cov_rpt(rpt):
 
 def parse_area_rpt(rpt):
     log = re.findall(r'Total cell area:.*', rpt)[0]
-    area = float(log.split()[-1])
-    if re.search("sc6mcz", rpt):
-        gate = area / 0.058
-    else:
-        raise NotImplementedError("Only 5nm process is available")
-    return round(gate, 3)
+    return round(float(log.split()[-1]), 3)
 
 def parse_pwr_rpt(rpt):
     log = re.findall(r'(Total Power.*?)\(', rpt)[0]
@@ -46,23 +41,39 @@ if __name__ == "__main__":
         cov_rpt_dict = {"Coverage(%)": cov_rpt_dict}
         cov_df = pd.DataFrame.from_dict(cov_rpt_dict).T
         cov_md = cov_df.to_markdown()
-    gate = ""
-    if Path(f"{args.area_rpt}/area.txt").is_file():
-        area_rpt = Path(f"{args.area_rpt}/area.txt").read_text()
-        gate = parse_area_rpt(area_rpt)
+    area_md = ""
+    if Path(args.area_rpt).is_dir():
+        area_rpt_dict = {}
+        for i in list(Path(args.area_rpt).glob("*")):
+            if (not i.is_dir()) or (not (i / "area.txt").is_file()):
+                continue
+            area_rpt = (i / "area.txt").read_text()
+            area_rpt_dict[i.name] = parse_area_rpt(area_rpt)
+        if area_rpt_dict:
+            area_rpt_dict = {"Area(um^2)": area_rpt_dict}
+            area_df = pd.DataFrame(area_rpt_dict).T
+            area_md = area_df.to_markdown()
+
     pwr_md = ""
-    if Path(f"{args.pwr_rpt}").is_dir():
+    if Path(args.pwr_rpt).is_dir():
         pwr_rpt_dict = {}
-        for pwr_rpt in Path(f"{args.pwr_rpt}").glob("*.pwr"):
-            pwr_rpt_dict[pwr_rpt.stem] = parse_pwr_rpt(pwr_rpt.read_text())
-        pwr_rpt_dict = {"Power(mW)": pwr_rpt_dict}
-        pwr_df = pd.DataFrame.from_dict(pwr_rpt_dict).T
-        pwr_md = pwr_df.to_markdown()
-    
+        for i in list(Path(args.pwr_rpt).glob("*")):
+            if (not i.is_dir()) or (not list(i.glob("*.pwr"))):
+                continue
+            for pwr_rpt in sorted(i.glob("*.pwr"), key=lambda x: int(x.stem.split("_")[-1][:-1].replace("m", "-"))):
+                pwr_rpt_dict[(i.name, pwr_rpt.stem)] = parse_pwr_rpt(pwr_rpt.read_text())
+
+        if pwr_rpt_dict:
+            columns = list(pwr_rpt_dict.keys())
+            pwr_rpt_dict = {"Power(mW)": pwr_rpt_dict}
+            pwr_df = pd.DataFrame(pwr_rpt_dict).T
+            pwr_df = pwr_df[columns]
+            pwr_md = pwr_df.to_html()
+
     readme = md_rpt.format(
         coverage = cov_md,
         power = pwr_md,
-        gate_count = gate
+        area = area_md
     )
 
     if Path("README.md").is_file():

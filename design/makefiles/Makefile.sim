@@ -8,8 +8,10 @@ ifeq ($(SIM_TYPE), RTL_SIM)
 	export MAX_ITER = 100
 endif
 ifeq ($(SIM_TYPE), PRE_SIM)
-	FILE_LIST = $(realpath ./file_list.pre.f)
+	PROCESS = 5nm
+	FILE_LIST = $(realpath ./file_list.$(PROCESS).f)
 	PLUSARGS += +define+SAIF_ON
+	PLUSARGS += +define+SAIF_NAME=\"$(MODULE_NAME).$(PROCESS).saif\"
 	export RANDOM_SEED = 1
 	export MAX_ITER = 10
 	TESTCASE=normal

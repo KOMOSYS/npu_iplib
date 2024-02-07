@@ -1,0 +1,32 @@
+****************************************
+Report : Averaged Power
+Design : transposer
+Version: S-2021.06-SP5
+Date   : Wed Feb  7 23:12:14 2024
+****************************************
+
+
+
+  Attributes
+  ----------
+      i  -  Including register clock pin internal power
+      u  -  User defined power group
+
+                        Internal  Switching  Leakage    Total
+Power Group             Power     Power      Power      Power   (     %)  Attrs
+--------------------------------------------------------------------------------
+clock_network           6.369e-03 3.896e-04 4.331e-07 6.759e-03 (44.14%)  i
+register                6.314e-03 1.159e-04 2.889e-04 6.718e-03 (43.88%)  
+combinational           5.178e-04 1.218e-03 9.892e-05 1.835e-03 (11.98%)  
+sequential                 0.0000    0.0000    0.0000    0.0000 ( 0.00%)  
+memory                     0.0000    0.0000    0.0000    0.0000 ( 0.00%)  
+io_pad                     0.0000    0.0000    0.0000    0.0000 ( 0.00%)  
+black_box                  0.0000    0.0000    0.0000    0.0000 ( 0.00%)  
+
+  Net Switching Power  = 1.724e-03   (11.26%)
+  Cell Internal Power  =    0.0132   (86.21%)
+  Cell Leakage Power   = 3.883e-04   ( 2.54%)
+                         ---------
+Total Power            =    0.0153  (100.00%)
+
+1
