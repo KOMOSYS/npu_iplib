@@ -70,15 +70,15 @@ class RandomConfig(BaseConfig):
             enc_output_syndrome_list.extend(syndrome)
             enc_output_syndrome_list2.append(hamming_codec.encode(i, len(data[0])))
 
-        print('=================================================================')
-        print('===================Encoder=======================================')
-        print('=================================================================')
-        print(f'Input data list  ={rand_data_list}')
-        print(f'Output data list  ={enc_output_data_list}')
-        print(f'Output parity list  ={enc_output_parity_list}')
-        print(f'Expected Encoded Syndrome by python  ={enc_output_syndrome_list}')
-        print(f'Expected Encoded Syndrome by package ={enc_output_syndrome_list2}')
-        print('=================================================================')
+        #print('=================================================================')
+        #print('===================Encoder=======================================')
+        #print('=================================================================')
+        #print(f'Input data list  ={rand_data_list}')
+        #print(f'Output data list  ={enc_output_data_list}')
+        #print(f'Output parity list  ={enc_output_parity_list}')
+        #print(f'Expected Encoded Syndrome by python  ={enc_output_syndrome_list}')
+        #print(f'Expected Encoded Syndrome by package ={enc_output_syndrome_list2}')
+        #print('=================================================================')
         
         return enc_output_parity_list, enc_output_data_list, enc_output_syndrome_list, enc_output_syndrome_list2
 
@@ -130,16 +130,16 @@ class RandomConfig(BaseConfig):
             err_parity.append(err_parity_unit)
             err_data.append(err_data_unit)
 
-        print('=================================================================')
-        print('===========ERROR INSERTION=======================================')
-        print('=================================================================')
-        print(f'init data = {data_list}')
-        print(f'err_data = {err_data}')        
-        print(f'init parity = {parity_list}')
-        print(f'err_parity = {err_parity}')        
-        print(f'syndrome_list = {syndrome_list}')
-        print(f'err_syndrome = {err_syndrome}')        
-        print('=================================================================')
+        #print('=================================================================')
+        #print('===========ERROR INSERTION=======================================')
+        #print('=================================================================')
+        #print(f'init data = {data_list}')
+        #print(f'err_data = {err_data}')        
+        #print(f'init parity = {parity_list}')
+        #print(f'err_parity = {err_parity}')        
+        #print(f'syndrome_list = {syndrome_list}')
+        #print(f'err_syndrome = {err_syndrome}')        
+        #print('=================================================================')
 
         return err_data, err_parity, err_syndrome
 
@@ -153,14 +153,14 @@ class RandomConfig(BaseConfig):
         for j,k in zip(data_list, parity_list):
             dec_output_data_code_list.append(self.hamming_decoder(j,k))
 
-        print('=================================================================')
-        print('===================Decoder=======================================')
-        print('=================================================================')
-        print(f'Input parity list  ={parity_list}')
-        print(f'Input data list  ={data_list}')
-        print(f'Expected Decoded Data by python  ={dec_output_data_code_list}')
-        print(f'Expected Decoded Data by package ={dec_output_data_package_list}')
-        print('=================================================================')
+        #print('=================================================================')
+        #print('===================Decoder=======================================')
+        #print('=================================================================')
+        #print(f'Input parity list  ={parity_list}')
+        #print(f'Input data list  ={data_list}')
+        #print(f'Expected Decoded Data by python  ={dec_output_data_code_list}')
+        #print(f'Expected Decoded Data by package ={dec_output_data_package_list}')
+        #print('=================================================================')
 
         return dec_output_data_package_list, dec_output_data_code_list
 
@@ -372,29 +372,15 @@ class HammingEccEncTester(BaseTester):
         dec_data   = self._cfg._dec_input_data_list
         dec_parity = self._cfg._dec_input_parity_list
         idx = 0
-        print(f'err_dec_data = {dec_data}')
-        print(f'err_dec_parity = {dec_parity}')
-        print(f'len(dec_data) = {len(dec_data)}')
-        print(f'err_dec_data[0] = {dec_data[0]}')
-        print(f'err_dec_data[1] = {dec_data[1]}')
-        print(f'err_dec_parity[0] = {dec_parity[0]}')
-        print(f'err_dec_parity[1] = {dec_parity[1]}')
                                            
         while True:
             await RisingEdge(self._dut.clk)
             if idx == len(dec_data):
-                print(f'break')
                 break
             else:
                 if self._dut.i_fifo_rreq.value == 1:
-                    print(f'got in')
-                    print(f'idx = {idx}')
                     self._dut.u_hamming_ecc.u_hamming_dec.i_dec_data.value = int(dec_data[idx],2)
                     self._dut.u_hamming_ecc.u_hamming_dec.i_parity.value = int(dec_parity[idx],2)
-                    print(f'int(dec_data) = {int(dec_data[idx],2)}')
-                    print(f'int(dec_data) = {dec_data[idx]}')
-                    print(f'int(dec_parity) = {int(dec_parity[idx],2)}')
-                    print(f'int(dec_parity) = {dec_parity[idx]}')
                     idx += 1
 
         await RisingEdge(self._dut.clk)
@@ -413,8 +399,6 @@ class HammingEccEncTester(BaseTester):
             if self._dut.r_o_data_monit.value == 1:
                 self.err_pos  = self._dut.u_hamming_ecc.u_hamming_dec.o_err_pos.value
                 self.dec_data = self._dut.u_hamming_ecc.u_hamming_dec.o_dec_data.value
-                print(f'rtl err_pos  = {self.err_pos}')
-                print(f'rtl dec_data = {self.dec_data}')
                 self._dec_monit_port.put_nowait((self.err_pos, self.dec_data))
 
             if self._dut.w_quit_cnt_end.value == 1:
