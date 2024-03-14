@@ -1,0 +1,52 @@
+Warning: Design 'hamming_ecc' has '2' unresolved references. For more detailed information, use the "link" command. (UID-341)
+ 
+****************************************
+check_design summary:
+Version:     R-2020.09-SP4
+Date:        Thu Mar 14 17:18:57 2024
+****************************************
+
+                   Name                                            Total
+--------------------------------------------------------------------------------
+Inputs/Outputs                                                     12
+    Multiply driven inputs (LINT-6)                                10
+    Shorted outputs (LINT-31)                                       2
+
+Cells                                                               4
+    Cells do not drive (LINT-1)                                     4
+
+Tristate                                                           14
+    A tristate bus has a non tri-state driver (LINT-34)            14
+--------------------------------------------------------------------------------
+
+Warning: In design 'fifo_FC1_FD2_FW10', cell 'C234' does not drive any nets. (LINT-1)
+Warning: In design 'fifo_FC1_FD2_FW10', cell 'C238' does not drive any nets. (LINT-1)
+Warning: In design 'fifo_FC1_FD2_FW4', cell 'C180' does not drive any nets. (LINT-1)
+Warning: In design 'fifo_FC1_FD2_FW4', cell 'C184' does not drive any nets. (LINT-1)
+Warning: In design 'hamming_ecc', input port 'i_data[9]' drives wired logic; the port direction may have been specified incorrectly. (LINT-6)
+Warning: In design 'hamming_ecc', input port 'i_data[8]' drives wired logic; the port direction may have been specified incorrectly. (LINT-6)
+Warning: In design 'hamming_ecc', input port 'i_data[7]' drives wired logic; the port direction may have been specified incorrectly. (LINT-6)
+Warning: In design 'hamming_ecc', input port 'i_data[6]' drives wired logic; the port direction may have been specified incorrectly. (LINT-6)
+Warning: In design 'hamming_ecc', input port 'i_data[5]' drives wired logic; the port direction may have been specified incorrectly. (LINT-6)
+Warning: In design 'hamming_ecc', input port 'i_data[4]' drives wired logic; the port direction may have been specified incorrectly. (LINT-6)
+Warning: In design 'hamming_ecc', input port 'i_data[3]' drives wired logic; the port direction may have been specified incorrectly. (LINT-6)
+Warning: In design 'hamming_ecc', input port 'i_data[2]' drives wired logic; the port direction may have been specified incorrectly. (LINT-6)
+Warning: In design 'hamming_ecc', input port 'i_data[1]' drives wired logic; the port direction may have been specified incorrectly. (LINT-6)
+Warning: In design 'hamming_ecc', input port 'i_data[0]' drives wired logic; the port direction may have been specified incorrectly. (LINT-6)
+Warning: In design 'fifo_FC1_FD2_FW10', output port 'ffbfull' is connected directly to output port 'ffbvcnt[1]'. (LINT-31)
+Warning: In design 'fifo_FC1_FD2_FW4', output port 'ffbfull' is connected directly to output port 'ffbvcnt[1]'. (LINT-31)
+Warning: In design 'hamming_ecc', three-state bus 'w_parity2[0]' has non three-state driver 'u_parity_fifo/ffbdo_reg[0]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_parity2[1]' has non three-state driver 'u_parity_fifo/ffbdo_reg[1]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_parity2[2]' has non three-state driver 'u_parity_fifo/ffbdo_reg[2]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_parity2[3]' has non three-state driver 'u_parity_fifo/ffbdo_reg[3]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_data2[0]' has non three-state driver 'u_data_fifo/ffbdo_reg[0]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_data2[1]' has non three-state driver 'u_data_fifo/ffbdo_reg[1]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_data2[2]' has non three-state driver 'u_data_fifo/ffbdo_reg[2]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_data2[3]' has non three-state driver 'u_data_fifo/ffbdo_reg[3]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_data2[4]' has non three-state driver 'u_data_fifo/ffbdo_reg[4]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_data2[5]' has non three-state driver 'u_data_fifo/ffbdo_reg[5]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_data2[6]' has non three-state driver 'u_data_fifo/ffbdo_reg[6]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_data2[7]' has non three-state driver 'u_data_fifo/ffbdo_reg[7]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_data2[8]' has non three-state driver 'u_data_fifo/ffbdo_reg[8]/Q'. (LINT-34)
+Warning: In design 'hamming_ecc', three-state bus 'w_data2[9]' has non three-state driver 'u_data_fifo/ffbdo_reg[9]/Q'. (LINT-34)
+1
