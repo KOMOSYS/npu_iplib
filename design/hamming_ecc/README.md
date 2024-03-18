@@ -26,7 +26,11 @@
 | Power(mW) |     --    |    --    |    --    |
 
 ### Area
-Gate Count: 234.4866
+|**Bit Count**      |512       |
+|-------------------|----------|
+|**Total cell area**|346.059218|
+|**NAND2 area**     |0.058     |
+|**Gate Count**     |5966.53824|
 
 
 ***
@@ -36,7 +40,7 @@ Gate Count: 234.4866
       -  Encoder (hamming_enc) : Encoding Input Data into Syndrome in FIFO (Data + Parity)
       -  Decoder (hamming_dec) : Decoding Syndrome in FIFO into Data
 
-<p align="center"><img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/e4c14750-0ac2-4e5a-aa8c-53ffcf9a1bc0" width="80%" height="80%"></p>
+<p align="center"><img src="https://github.com/KOMOSYS/npu_iplib/blob/main/design/hamming_ecc/doc/structure.png?raw=true" width="80%" height="80%"></p>
 
 
 ***
@@ -46,7 +50,7 @@ Gate Count: 234.4866
       -  PARITY_FIFO와 PARITY_FIFO 중에서 발생한 1-bit Error는 hamming_dec 내에서 Error 발생 위치 확인 및 수정
       -  DW (Data Width)는 Parameterizing 가능하며, PW (Parity Width)는 각 block 내에서 local parameter로 계산
 
-<p align="center"><img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/06765dce-7de4-454f-94b2-696c1b80f1e6" width="80%" height="80%"></p>
+<p align="center"><img src="https://github.com/KOMOSYS/npu_iplib/blob/315a70ff6fdd299d46a52a199415cfebba73549a/design/hamming_ecc/doc/function.png?raw=true" width="80%" height="80%"></p>
 
 
 ***
@@ -54,7 +58,7 @@ Gate Count: 234.4866
 
   -  Python Package, Code Model, Verilog RTL 교차 검증 구조
 
-<p align="center"><img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/0bdafb36-5ef8-47cf-86bd-ae7f8e2feba1" width="100%" height="100%"></p>
+<p align="center"><img src="https://github.com/KOMOSYS/npu_iplib/blob/315a70ff6fdd299d46a52a199415cfebba73549a/design/hamming_ecc/doc/verification%20concept.png?raw=true" width="100%" height="100%"></p>
 
 
 ***
@@ -62,7 +66,7 @@ Gate Count: 234.4866
 
   -  hamming_enc -> FIFO -> hamming_dec
 
-<p align="center"><img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/0d951975-0e9d-456f-8f31-e9f5ff95c9aa" width="100%" height="100%"></p>
+<p align="center"><img src="https://github.com/KOMOSYS/npu_iplib/blob/315a70ff6fdd299d46a52a199415cfebba73549a/design/hamming_ecc/doc/block%20diagram.png?raw=true" width="100%" height="100%"></p>
 
 
 ***
@@ -70,11 +74,11 @@ Gate Count: 234.4866
 
   ### Hamming ECC Top Structure
 
-<p align="center"><img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/352c59e3-e415-47e6-8904-a194468a9d35" width="40%" height="40%">    <img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/efc51a1c-74f1-40c1-b964-5cfcadc09543" width="35%" height="35%"></p>
+<p align="center"><img src="https://github.com/KOMOSYS/npu_iplib/blob/315a70ff6fdd299d46a52a199415cfebba73549a/design/hamming_ecc/doc/code%20analysis_1.png?raw=true" width="40%" height="40%">    <img src="https://github.com/KOMOSYS/npu_iplib/blob/315a70ff6fdd299d46a52a199415cfebba73549a/design/hamming_ecc/doc/code%20analysis_2.png?raw=true" width="35%" height="35%"></p>
 
   ### Hamming Encoder : get data position
 
-<p align="left"><img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/fd993374-39ad-45ff-b5ec-a8a3dd68e18d" width="40%" height="40%"></p>
+<p align="left"><img src="https://github.com/KOMOSYS/npu_iplib/blob/315a70ff6fdd299d46a52a199415cfebba73549a/design/hamming_ecc/doc/code%20analysis_3.png?raw=true" width="40%" height="40%"></p>
 
   -  syndrome[11:0] : data & parity 조합
 
@@ -92,7 +96,7 @@ Gate Count: 234.4866
 
   ### Hamming Encoder : get parity
 
-<p align="left"><img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/faa715e7-c8a8-4e47-9bec-9d49d28e18b5" width="40%" height="40%"></p>
+<p align="left"><img src="https://github.com/KOMOSYS/npu_iplib/blob/315a70ff6fdd299d46a52a199415cfebba73549a/design/hamming_ecc/doc/code%20analysis_4.png?raw=true" width="40%" height="40%"></p>
 
   -  data_pos[8][7:0] : data & parity 조합
 
@@ -119,7 +123,7 @@ Gate Count: 234.4866
 
   ### Hamming Decoder : get check bit
 
-<p align="left"><img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/b51fb3e9-3c45-4464-a2f1-245fad5d2e41" width="40%" height="40%"></p>
+<p align="left"><img src="https://github.com/KOMOSYS/npu_iplib/blob/315a70ff6fdd299d46a52a199415cfebba73549a/design/hamming_ecc/doc/code%20analysis_5.png?raw=true" width="40%" height="40%"></p>
 
 ⇒ Encoder에서 data position 구하는 방식과 동일
 
@@ -136,7 +140,7 @@ Gate Count: 234.4866
 
   ### Hamming Decoder : get error bit position & recover it
 
-<p align="left"><img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/44239d10-0dbf-439e-946f-0afc52a20e22" width="40%" height="40%"></p>  
+<p align="left"><img src="https://github.com/KOMOSYS/npu_iplib/blob/315a70ff6fdd299d46a52a199415cfebba73549a/design/hamming_ecc/doc/code%20analysis_6.png?raw=true" width="60%" height="60%"></p>  
 
   -  err_bit[PW-1:0] : 
 
@@ -164,9 +168,9 @@ Gate Count: 234.4866
      
   -  Simulation Result : Waveform with **NO ERROR**
 
-<p align="center"><img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/84cc581a-284e-4473-a608-c5ec16fbfe39" width="100%" height="100%"></p>  
+<p align="center"><img src="https://github.com/KOMOSYS/npu_iplib/blob/315a70ff6fdd299d46a52a199415cfebba73549a/design/hamming_ecc/doc/simulation_1.png?raw=true" width="100%" height="100%"></p>  
 
      
   -  Simulation Result : Waveform with **ERROR**
 
-<p align="center"><img src="https://github.com/JinungJ/Hamming-ECC/assets/158130893/b7967e17-2d93-435d-bba4-3bd60c893a0d" width="100%" height="100%"></p>  
+<p align="center"><img src="https://github.com/KOMOSYS/npu_iplib/blob/315a70ff6fdd299d46a52a199415cfebba73549a/design/hamming_ecc/doc/simulation_2.png?raw=true" width="100%" height="100%"></p>  
