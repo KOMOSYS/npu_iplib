@@ -160,10 +160,11 @@
 
   -  Synthesis Result : Report
 
-      |**Total cell area**|13.600224|
-      |-------------------|---------|
-      |**NAND2 area**     |0.058    |
-      |**Gate Count**     |234      |
+  |**Bit Count**      |512       |
+  |-------------------|----------|
+  |**Total cell area**|346.059218|
+  |**NAND2 area**     |0.058     |
+  |**Gate Count**     |5966.53824|
 
      
   -  Simulation Result : Waveform with **NO ERROR**
