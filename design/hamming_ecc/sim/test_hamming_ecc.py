@@ -30,7 +30,7 @@ class RandomConfig(BaseConfig):
         rand_data_list = [randrange(0, (2**DW)-1) for _ in range(IC)]
         #rand_data_list = np.random.randint(0, (2**DW)-1, size=IC)
         #rand_data_list = rand_data_list.tolist()
-        print(f'rand_data_list = {rand_data_list}')
+        #print(f'rand_data_list = {rand_data_list}')
 
         # Encoder
         self._enc_input_data_list = self.randomize_input(rand_data_list)
@@ -57,7 +57,7 @@ class RandomConfig(BaseConfig):
     def randomize_input(self, rand_data_list):
         # 8bit data -> binary input data (check numpy binary_repr)
         enc_input_data_list= [np.binary_repr(num, width=DW) for num in rand_data_list]
-        cocotb.log.info(enc_input_data_list)
+        #cocotb.log.info(enc_input_data_list)
 
         return enc_input_data_list
 
@@ -376,8 +376,8 @@ class HammingEccEncTester(BaseTester):
         self._dut.i_fifo_rreq.value = 0
 
     async def _err_driver(self) -> None:
-        dec_data   = self._cfg._dec_input_data_list
         dec_parity = self._cfg._dec_input_parity_list
+        dec_data   = self._cfg._dec_input_data_list
         idx = 0
                                            
         while True:
@@ -463,7 +463,7 @@ async def normal(dut):
     await tester.reset_phase()
 
     for iter in range(1):
-        cocotb.log.info(f"Iteration {iter}")
+        #cocotb.log.info(f"Iteration {iter}")
         set_seed(random_seed+iter)
         cfg.randomize()
         cocotb.log.info(cfg)
