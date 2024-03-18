@@ -1,7 +1,7 @@
 module hamming_dec 
 #(
-    parameter DW=8,
-    parameter PW=4
+    parameter DW= 512,
+    parameter PW= 10
 )(
     input  [DW-1:0] i_dec_data,
     input  [PW-1:0] i_parity  ,

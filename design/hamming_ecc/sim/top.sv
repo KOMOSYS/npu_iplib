@@ -1,4 +1,4 @@
-module top #(parameter DW=10) (
+module top #(parameter DW=512) (
 	input           clk         ,
 	input           reset_n     ,
         input           i_fifo_wreq ,

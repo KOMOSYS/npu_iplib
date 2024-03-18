@@ -2,7 +2,7 @@ module fifo
 #(
     parameter FC  = 1,             // FC : FIFO Counter Bits
     parameter FD  = 2,             // FD : FIFO Depth
-    parameter FW  = 2,             // FW : FIFO Width
+    parameter FW  = 512,           // FW : FIFO Width
     parameter FDH = FD - 1,
     parameter FWH = FW - 1,
     parameter FCH = FC - 1

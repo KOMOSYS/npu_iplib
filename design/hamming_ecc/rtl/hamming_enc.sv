@@ -1,7 +1,7 @@
 module hamming_enc
 #(
-    parameter DW = 10,
-    parameter PW = 4
+    parameter DW = 512,
+    parameter PW = 10 
 )(
     input  [DW-1:0] i_enc_data,
     output [PW-1:0] o_parity  

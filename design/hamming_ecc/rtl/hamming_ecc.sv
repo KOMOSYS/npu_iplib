@@ -1,4 +1,4 @@
-module hamming_ecc #(parameter DW=10) (
+module hamming_ecc #(parameter DW=512) (
 	input           clk         ,
 	input           reset_n     ,
         input           i_fifo_wreq ,

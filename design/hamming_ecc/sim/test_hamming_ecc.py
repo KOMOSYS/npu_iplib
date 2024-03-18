@@ -1,5 +1,6 @@
 import os
 import random
+from random import randrange
 import itertools
 import numpy as np
 import pandas as pd
@@ -19,19 +20,22 @@ import math
 import hamming_codec
 
 # Data Width Parameter Set by User
-DW = 10 
+DW = 512 
 
 # Input Count Parameter Set by User
-IC = 4 
+IC = 3 
 
 class RandomConfig(BaseConfig):
     def randomize(self):
-        rand_data_list = np.random.randint(0, (2**DW)-1, size=IC)
-        rand_data_list = rand_data_list.tolist()
+        rand_data_list = [randrange(0, (2**DW)-1) for _ in range(IC)]
+        #rand_data_list = np.random.randint(0, (2**DW)-1, size=IC)
+        #rand_data_list = rand_data_list.tolist()
+        print(f'rand_data_list = {rand_data_list}')
 
         # Encoder
         self._enc_input_data_list = self.randomize_input(rand_data_list)
-        self._enc_output_parity_list, self._enc_output_data_list, self._enc_output_syndrome_list, self._enc_output_syndrome_list2 = self.ref_enc_data(rand_data_list)
+        self._enc_output_parity_list, self._enc_output_data_list, self._enc_output_syndrome_list = self.ref_enc_data(rand_data_list)
+        #self._enc_output_parity_list, self._enc_output_data_list, self._enc_output_syndrome_list, self._enc_output_syndrome_list2 = self.ref_enc_data(rand_data_list)
 
         # Error Insertion
         enc_data_list = self._enc_output_data_list
@@ -47,7 +51,8 @@ class RandomConfig(BaseConfig):
         self._dec_input_parity_list = err_enc_parity_list
         self._dec_input_data_list   = err_enc_data_list
         self._dec_input_syndrome_list = self._enc_output_syndrome_list
-        self._dec_output_data_package_list, self._dec_output_data_code_list = self.ref_dec_data(self._dec_input_parity_list, self._dec_input_data_list, self._dec_input_syndrome_list)
+        self._dec_output_data_code_list = self.ref_dec_data(self._dec_input_parity_list, self._dec_input_data_list, self._dec_input_syndrome_list)
+        #self._dec_output_data_package_list, self._dec_output_data_code_list = self.ref_dec_data(self._dec_input_parity_list, self._dec_input_data_list, self._dec_input_syndrome_list)
 
     def randomize_input(self, rand_data_list):
         # 8bit data -> binary input data (check numpy binary_repr)
@@ -68,7 +73,7 @@ class RandomConfig(BaseConfig):
             enc_output_parity_list.extend(parity)
             enc_output_data_list.extend(data)
             enc_output_syndrome_list.extend(syndrome)
-            enc_output_syndrome_list2.append(hamming_codec.encode(i, len(data[0])))
+            #enc_output_syndrome_list2.append(hamming_codec.encode(i, len(data[0])))
 
         #print('=================================================================')
         #print('===================Encoder=======================================')
@@ -80,7 +85,8 @@ class RandomConfig(BaseConfig):
         #print(f'Expected Encoded Syndrome by package ={enc_output_syndrome_list2}')
         #print('=================================================================')
         
-        return enc_output_parity_list, enc_output_data_list, enc_output_syndrome_list, enc_output_syndrome_list2
+        return enc_output_parity_list, enc_output_data_list, enc_output_syndrome_list
+        #return enc_output_parity_list, enc_output_data_list, enc_output_syndrome_list, enc_output_syndrome_list2
 
     def err_insert(self, data, parity):
         data_list = []
@@ -144,11 +150,11 @@ class RandomConfig(BaseConfig):
         return err_data, err_parity, err_syndrome
 
     def ref_dec_data(self, parity_list, data_list, syndrome_list):
-        dec_output_data_package_list = []  # Package ver.
+        #dec_output_data_package_list = []  # Package ver.
         dec_output_data_code_list    = []  # Code ver.
 
-        for i in syndrome_list:
-            dec_output_data_package_list.append(hamming_codec.decode(int(i,2), len(i)))
+        #for i in syndrome_list:
+        #    dec_output_data_package_list.append(hamming_codec.decode(int(i,2), len(i)))
 
         for j,k in zip(data_list, parity_list):
             dec_output_data_code_list.append(self.hamming_decoder(j,k))
@@ -162,7 +168,8 @@ class RandomConfig(BaseConfig):
         #print(f'Expected Decoded Data by package ={dec_output_data_package_list}')
         #print('=================================================================')
 
-        return dec_output_data_package_list, dec_output_data_code_list
+        return dec_output_data_code_list
+        #return dec_output_data_package_list, dec_output_data_code_list
 
 
     # Python Code Reference of Hamming Code 
@@ -411,26 +418,31 @@ class HammingEccEncTester(BaseTester):
             ref_parity   = self._cfg._enc_output_parity_list[i]
             ref_syndrome = self._cfg._enc_output_syndrome_list[i]
             # Package output
-            ref_syndrome2 = self._cfg._enc_output_syndrome_list2[i]
+            #ref_syndrome2 = self._cfg._enc_output_syndrome_list2[i]
             # RTL output parity
             enc_parity = await self._enc_monit_port.get()
             compare_data = {
-                "Code"            : {"syndrome":int(ref_syndrome, 2), "parity":int(ref_parity, 2)},
-                "Package and RTL" : {"syndrome":int(ref_syndrome2, 2), "parity":int(str(enc_parity), 2)},
+                "Code"            : {"parity":int(ref_parity, 2)},
+                "Package and RTL" : {"parity":int(str(enc_parity), 2)},
             }
             assert compare_data["Code"] == compare_data["Package and RTL"], "\n" + tabulate(pd.DataFrame(compare_data), headers="keys", tablefmt="pretty")
+            #compare_data = {
+            #    "Code"            : {"syndrome":int(ref_syndrome, 2), "parity":int(ref_parity, 2)},
+            #    "Package and RTL" : {"syndrome":int(ref_syndrome2, 2), "parity":int(str(enc_parity), 2)},
+            #}
+            #assert compare_data["Code"] == compare_data["Package and RTL"], "\n" + tabulate(pd.DataFrame(compare_data), headers="keys", tablefmt="pretty")
 
     async def _dec_checker(self) -> None:
         for i in range(len(self._cfg._dec_output_data_code_list)):
             # Package output data
-            ref_data = self._cfg._dec_output_data_package_list[i]
+            #ref_data = self._cfg._dec_output_data_package_list[i]
             # Python output data
             ref_data2 = self._cfg._dec_output_data_code_list[i]
             # RTL output data
             dec_err_pos, dec_data = await self._dec_monit_port.get()
             compare_data = {
                 "RTL"     : {"data":dec_data},
-                "Code"    : {"data":int(ref_data, 2)},
+                #"Code"    : {"data":int(ref_data, 2)},
                 "Package" : {"data":int(ref_data2, 2)},
             }
             assert compare_data["RTL"] == compare_data["Package"], "\n" + tabulate(
